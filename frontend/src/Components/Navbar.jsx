@@ -1,18 +1,41 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
-import logo1 from '../images/logo1.png'
+import React from "react";
+import { Link } from "react-router-dom";
+import { FiArrowRight } from "react-icons/fi";
+import heroMotoCorpLogo from "../assets/heromotocorp-logo.png";
+
 function Navbar() {
   return (
-    <div className="bg-gray-800">
-      <nav className="flex justify-between items-center py-4 px-10">
-      
-        <img src={logo1} className='w-56' alt="sample logo"></img>
-        <div>
-          <button className="text-white px-6 py-2 bg-blue-600 rounded-lg hover:bg-blue-700 focus:outline-none transition duration-300 mr-4">           <Link to='/SignupPage'>Get Started</Link></button>
-          <button className="text-blue-600 px-6 py-2 bg-white rounded-lg hover:bg-gray-100 focus:outline-none transition duration-300">           <Link to='/SignupPage'>Sign up</Link></button>
+    <header className="sticky top-0 z-50 border-b border-white/10 bg-[#07111f]/95 text-white backdrop-blur">
+      <nav className="mx-auto flex max-w-7xl items-center justify-between gap-5 px-6 py-4 lg:px-10">
+        <Link to="/" className="group flex min-w-0 items-center gap-3">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-white p-1.5 shadow-lg shadow-red-950/30 ring-1 ring-white/10 transition duration-200 group-hover:-translate-y-0.5 group-hover:shadow-[0_0_30px_rgba(215,25,32,0.38)]">
+            <img src={heroMotoCorpLogo} alt="Hero MotoCorp" className="h-full w-full object-contain" />
+          </span>
+          <div className="min-w-0">
+            <strong className="block text-sm font-black text-white sm:text-base">HERO MOTOCORP</strong>
+            <span className="hidden text-xs font-semibold uppercase text-[#9fb2cf] sm:block">
+              Spare Parts ERP Platform
+            </span>
+          </div>
+        </Link>
+
+        <div className="flex items-center gap-3">
+          <Link
+            to="/LoginPage"
+            className="hidden rounded-md px-4 py-2 text-sm font-bold text-[#dbe7f8] transition hover:bg-white/10 hover:text-white sm:inline-flex"
+          >
+            Sign in
+          </Link>
+          <Link
+            to="/SignupPage"
+            className="inline-flex min-h-10 items-center gap-2 rounded-md bg-[#d71920] px-4 text-sm font-black text-white transition hover:bg-[#b9141a] sm:px-5"
+          >
+            Start
+            <FiArrowRight />
+          </Link>
         </div>
       </nav>
-    </div>
+    </header>
   );
 }
 

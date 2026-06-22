@@ -1,6 +1,7 @@
 const Order = require('../models/Ordermodel');
 const logActivity = require('../libs/logger');
 const ProductModel = require('../models/Productmodel');
+const { syncInventory } = require("../services/inventoryService");
 
 const createOrder = async (req, res) => {
     try {
@@ -29,7 +30,9 @@ const createOrder = async (req, res) => {
         }
 
         productRecord.quantity -= quantity;
+        productRecord.currentStock = productRecord.quantity;
         await productRecord.save();
+        await syncInventory(productRecord._id);
 
         const newOrder = new Order({
             user,
@@ -67,6 +70,16 @@ const Removeorder = async (req, res) => {
             return res.status(404).json({ message: "Order is not found!" });
         }
 
+        if (Deletedorder.Product?.product && Deletedorder.Product?.quantity) {
+            const productRecord = await ProductModel.findById(Deletedorder.Product.product);
+            if (productRecord) {
+                productRecord.quantity = Number(productRecord.quantity || 0) + Number(Deletedorder.Product.quantity || 0);
+                productRecord.currentStock = productRecord.quantity;
+                await productRecord.save();
+                await syncInventory(productRecord._id);
+            }
+        }
+
         await logActivity({
             action: "Delete order",
             description: `Order was deleted.`,
@@ -87,7 +100,7 @@ const Removeorder = async (req, res) => {
 const getOrder = async (req, res) => {
     try {
         const orders = await Order.find({})
-  .populate("Product.product", "name ProductModelrice ") 
+  .populate("Product.product", "name partName partNumber Price unitCost")
   .populate("user", "name email"); 
 
         if (!orders || orders.length === 0) {
@@ -112,7 +125,7 @@ const updatestatusOrder = async (req, res) => {
 
    
         if (updates.Product && Array.isArray(updates.Product)) {
-            updates.totalAmount = updates.Product.reduce((sum, item) => sum + item.quantity * item.ProductModelrice, 0);
+            updates.totalAmount = updates.Product.reduce((sum, item) => sum + item.quantity * item.price, 0);
         }
 
   
@@ -148,7 +161,7 @@ const searchOrder = async (req, res) => {
 
         const searchdata = await Order.find({
             $or: [
-                { Desciption: { $regex: query, $options: "i" } },
+                { Description: { $regex: query, $options: "i" } },
                 { status: { $regex: query, $options: "i" } },
                 { "user.name": { $regex: query, $options: "i" } }
             ]

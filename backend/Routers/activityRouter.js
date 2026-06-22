@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const ActivityLog = require("../models/ActivityLogmodel");
+const { authmiddleware, authorizeRoles } = require("../middleware/Authmiddleware");
 
 module.exports = (app) => {
   const io = app.get("io");
@@ -10,13 +11,7 @@ module.exports = (app) => {
     return router;
   }
 
-  io.on("connection", (socket) => {
-    console.log("A user connected");
-
-    socket.on("disconnect", () => {
-      console.log("User disconnected");
-    });
-  });
+  router.use(authmiddleware, authorizeRoles("admin", "manager"));
 
   const emitNewLog = async (logId) => {
     try {
@@ -31,7 +26,6 @@ module.exports = (app) => {
     try {
       const newLog = new ActivityLog(req.body);
       const savedLog = await newLog.save();
-      console.log("Saved log:", savedLog);
       emitNewLog(savedLog._id);
 
       res.status(201).json(savedLog);

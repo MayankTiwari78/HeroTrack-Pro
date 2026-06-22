@@ -1,7 +1,4 @@
-import React, { useEffect, useState } from "react";
-import TopNavbar from "../Components/TopNavbar";
-import { IoMdAdd } from "react-icons/io";
-import { MdKeyboardDoubleArrowLeft } from "react-icons/md";
+import React, { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { TiDelete } from "react-icons/ti";
 import image from "../images/user.png";
@@ -17,13 +14,12 @@ import  UserRoleChart from '../lib/Usersgraph'
 function Userstatus() {
   const { staffuser, manageruser, adminuser } = useSelector((state) => state.auth);
   const dispatch = useDispatch();
-  const { Authuser } = useSelector((state) => state.auth);
 
   useEffect(() => {
     dispatch(staffUser());
     dispatch(managerUser());
     dispatch(adminUser());
-  }, [dispatch,removeusers]);
+  }, [dispatch]);
 
   
 
@@ -42,7 +38,6 @@ function Userstatus() {
 
   return (
     <div className="min-h-screen bg-base-100">
-      <TopNavbar />
       <div className="flex">
       <div className=" bg-base-100 mt-10 ml-10 w-72 overflow-auto rounded-lg">
         <div className=" bg-base-100 p-4 rounded-lg shadow-md mb-4">

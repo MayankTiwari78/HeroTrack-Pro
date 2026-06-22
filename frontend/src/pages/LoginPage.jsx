@@ -1,16 +1,19 @@
-import React, { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 import * as yup from "yup";
+import { FiBarChart2, FiLock, FiTruck } from "react-icons/fi";
 import { login } from '../features/authSlice'; 
-import homeImage from '../images/welcomeimage.webp'
 
 function LoginPage() {
-  const { Authuser, isUserLogin } = useSelector((state) => state.auth);
   const dispatch = useDispatch();
-const navigator=useNavigate()
+  const navigator = useNavigate();
+  const dashboardByRole = {
+    admin: "/AdminDashboard",
+    manager: "/ManagerDashboard",
+    staff: "/StaffDashboard",
+  };
   const schema = yup.object().shape({
     email: yup.string().email("Invalid email").required("Email is required"),
     password: yup.string().min(6, "Password must be at least 6 characters").required("Password is required"),
@@ -25,42 +28,57 @@ const navigator=useNavigate()
   });
 
   const onSubmit = (data) => {
-    console.log("Form Submitted:", data);
     dispatch(login(data))
-    .then(()=>{
-    
-      navigator('/ManagerDashboard')
-      if(Authuser.user.role==="staff"){
-        navigator('/StaffDashboard')
-      } 
-      else if(Authuser.user.role=="admin"){
-        navigator('/AdminDashboard')
-      }
-      else{
-        navigator('/ManagerDashboard')
-      }
-
-
-    }) 
-    .catch((error) => {
-    
-      console.error("Error in Login:", error);
-    });
+    .unwrap()
+    .then((result)=>{
+      const role = result.user?.role;
+      navigator(dashboardByRole[role] || "/LoginPage");
+    })
+    .catch(() => {});
   };
 
-  useEffect(() => {
-    if (Authuser) {
-      
-    }
-  }, [Authuser]);
-
   return (
-    <div className="min-h-screen bg-base-100 flex bg-gray-50 min-h-screen">
-      <div className="w-full sm:w-1/2 p-6 flex items-center justify-center bg-white shadow-lg rounded-xl">
-        <div className="max-w-md w-full">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">InventoryPro</h1>
-            <p className="text-gray-600">by TechSolutions Inc.</p>
+    <div className="auth-page grid min-h-screen bg-[#f4f6f9] text-[#172033] lg:grid-cols-[0.95fr_1.05fr]">
+      <section className="auth-hero-panel flex min-h-[320px] flex-col justify-between bg-[#111827] p-8 text-white lg:min-h-screen lg:p-12">
+        <Link to="/" className="flex items-center gap-3">
+          <span className="auth-brand-mark grid h-11 w-11 place-items-center rounded-md bg-[#d71920] text-sm font-black">HTP</span>
+          <span>
+            <span className="block text-lg font-black">HERO TRACK PRO</span>
+            <span className="block text-xs font-bold text-gray-300">Hero MotoCorp Plant ERP</span>
+          </span>
+        </Link>
+
+        <div className="auth-hero-copy max-w-xl py-10">
+          <p className="mb-4 text-sm font-black uppercase text-[#ffb4b8]">Secure Operations Console</p>
+          <h2 className="text-4xl font-black leading-tight lg:text-5xl">Enterprise Spare Parts Control</h2>
+          <p className="mt-5 text-lg leading-8 text-gray-300">
+            Track department-wise stock, approvals, movements and low-stock risk across Hero MotoCorp operations.
+          </p>
+        </div>
+
+        <div className="auth-feature-grid grid gap-3 sm:grid-cols-3">
+          {[
+            { icon: FiTruck, label: "Movements" },
+            { icon: FiLock, label: "Role Access" },
+            { icon: FiBarChart2, label: "Analytics" },
+          ].map((item) => {
+            const Icon = item.icon;
+            return (
+              <div key={item.label} className="auth-feature-card rounded-md border border-white/10 bg-white/10 p-4">
+                <Icon className="mb-3 text-[#ffb4b8]" />
+                <span className="text-xs font-black uppercase text-gray-200">{item.label}</span>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="flex items-center justify-center p-6 lg:p-12">
+        <div className="auth-form-panel w-full max-w-md rounded-lg border border-gray-200 bg-white p-8 shadow-xl">
+          <div className="mb-8">
+            <p className="text-sm font-black uppercase text-[#d71920]">Operator Login</p>
+            <h1 className="mt-2 text-3xl font-black text-gray-900">Welcome back</h1>
+            <p className="mt-2 text-gray-600">Sign in to the HeroTrack Pro ERP workspace.</p>
           </div>
 
           <form onSubmit={handleSubmit(onSubmit)}>
@@ -69,7 +87,7 @@ const navigator=useNavigate()
               <input
                 type="email"
                 {...register("email")}
-                className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="auth-input w-full rounded-md border border-gray-300 p-3 focus:outline-none focus:ring-2 focus:ring-[#2455a6]"
                 placeholder="you@example.com"
               />
               {errors.email && <p className="text-red-500">{errors.email.message}</p>}
@@ -80,36 +98,30 @@ const navigator=useNavigate()
               <input
                 type="password"
                 {...register("password")}
-                className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="auth-input w-full rounded-md border border-gray-300 p-3 focus:outline-none focus:ring-2 focus:ring-[#2455a6]"
                 placeholder="Enter your password"
               />
               {errors.password && <p className="text-red-500">{errors.password.message}</p>}
             </div>
 
             <div className="flex items-center mb-6">
-              <input type="checkbox" id="2fa" className="mr-2" />
+              <input type="checkbox" id="2fa" className="auth-checkbox mr-2" />
               <label htmlFor="2fa" className="text-gray-600 text-sm">Agree on terms and conditions</label>
             </div>
 
             <button
               type="submit"
-              className="w-full bg-blue-600 text-white p-3 rounded-md hover:bg-blue-700 transition duration-300"
+              className="auth-primary-button w-full rounded-md bg-[#d71920] p-3 font-black text-white transition duration-300 hover:bg-[#b9141a]"
             >
               Sign in
             </button>
           </form>
 
           <div className="text-center mt-6">
-            <p>Don't have an account? <Link to='/SignupPage' className="text-blue-600 text-sm hover:underline">Click here</Link></p>
+            <p>Don't have an account? <Link to='/SignupPage' className="auth-link text-[#2455a6] text-sm font-bold hover:underline">Create one</Link></p>
           </div>
         </div>
-      </div>
-
-      <div className="w-full sm:w-1/2 p-10  bg-black text-white flex flex-col justify-center rounded-r-xl">
-        <h2 className="font-bold mb-4 text-4xl">Efficient Inventory Management</h2>
-        <p className="mb-6 text-lg font-medium text-gray-300">Streamline your operations with real-time tracking, automated reports, and seamless integrations.</p>
-        
-      </div>
+      </section>
     </div>
   );
 }

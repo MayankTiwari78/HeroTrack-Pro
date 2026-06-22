@@ -6,10 +6,10 @@ require("dotenv").config()
 module.exports.MongoDBconfig=()=>{
     mongoose.connect(process.env.MONGODB_URL)
     .then(()=>{
-        console.log("connected to database successfully")
+        console.info("connected to database successfully")
     })
     .catch((err)=>{
-        console.log("MonogoDB Connection Error",err)
+        console.error("MongoDB Connection Error", err)
     })
 
 }

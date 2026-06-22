@@ -3,6 +3,8 @@ const jwt=require('jsonwebtoken')
 const User=require('../models/Usermodel')
 require('dotenv').config();
 
+const activeRoles = ["admin", "manager", "staff"];
+
 module.exports.authmiddleware = async (req, res, next) => {
   try {
     const token = req.cookies.Inventorymanagmentsystem;
@@ -12,7 +14,7 @@ module.exports.authmiddleware = async (req, res, next) => {
     }
 
  
-    const decodedToken = jwt.verify(token, process.env.SecretKey);
+    const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
 
     
 
@@ -27,6 +29,9 @@ module.exports.authmiddleware = async (req, res, next) => {
       return res.status(401).json({ message: "Unauthorized: User not found." });
     }
 
+    if (!activeRoles.includes(user.role)) {
+      return res.status(403).json({ message: "403 Unauthorized: Role is no longer active." });
+    }
     
     req.user = user;
     next();
@@ -34,6 +39,21 @@ module.exports.authmiddleware = async (req, res, next) => {
     console.error("Token verification error:", error.message);
     return res.status(401).json({ message: "Unauthorized: Invalid or expired token." });
   }
+};
+
+module.exports.authorizeRoles = (...roles) => {
+  const allowedRoles = roles.filter((role) => activeRoles.includes(role));
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized: Login required." });
+    }
+
+    if (!allowedRoles.includes(req.user.role)) {
+      return res.status(403).json({ message: "403 Unauthorized: Access denied for this role." });
+    }
+
+    next();
+  };
 };
 
   module.exports.adminmiddleware=async(req,res,next)=>{

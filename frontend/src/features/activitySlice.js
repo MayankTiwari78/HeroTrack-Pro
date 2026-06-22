@@ -66,7 +66,7 @@ export const addActivityLog = createAsyncThunk(
   "activitylogs/addLog",
   async (logData, { rejectWithValue }) => {
     try {
-      const response = await axiosInstance.post("activity-logs", logData, {
+      const response = await axiosInstance.post("activitylogs/addLog", logData, {
         withCredentials: true,
       });
       return response.data; 

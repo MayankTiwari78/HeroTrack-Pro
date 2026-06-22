@@ -1,22 +1,17 @@
 import { useDispatch, useSelector } from "react-redux";
-import { io } from "socket.io-client";
 import { useEffect, useState } from "react";
 import { getAllActivityLogs, getsingleUserActivityLogs } from "../features/activitySlice";
-import TopNavbar from "../Components/TopNavbar";
 import FormattedTime from "../lib/FormattedTime ";
+import socket from "../lib/socket";
 
 function Activitylogpage() {
   const [logs, setLogs] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const logsPerPage = 10;
 
-  const { activityLogs, isFetching, userdata } = useSelector((state) => state.activity);
+  const { activityLogs } = useSelector((state) => state.activity);
   const { Authuser } = useSelector((state) => state.auth);
   const dispatch = useDispatch();
-
-  const socket = io("https://advanced-inventory-management-system-v1.onrender.com", {
-     withCredentials: true,
-     transports: ["websocket", "polling"], });
 
   useEffect(() => {
     if (Authuser?.id) {
@@ -24,17 +19,19 @@ function Activitylogpage() {
       dispatch(getsingleUserActivityLogs(Authuser.id));
     }
 
-    socket.on("newActivityLog", (newLog) => {
+    const handleActivityLog = (newLog) => {
       setLogs((prevLogs) => [newLog, ...prevLogs]);
-    });
+    };
+
+    socket.on("newActivityLog", handleActivityLog);
 
     return () => {
-      socket.off("newActivityLog");
+      socket.off("newActivityLog", handleActivityLog);
     };
-  }, [dispatch, Authuser.id]);
+  }, [dispatch, Authuser?.id]);
 
   useEffect(() => {
-    setLogs(activityLogs);
+    setLogs(Array.isArray(activityLogs) ? activityLogs : []);
   }, [activityLogs]);
 
   const indexOfLastLog = currentPage * logsPerPage;
@@ -43,38 +40,44 @@ function Activitylogpage() {
   const totalPages = Math.ceil(logs.length / logsPerPage);
 
   return (
-    <div className="bg-base-100 min-h-screen">
-      <TopNavbar />
-      <div className="mt-10 ml-5">
-        <h1 className="text-xl font-semibold mb-4">Activity Logs</h1>
-        <div className="overflow-x-auto">
-          <table className="min-w-full bg-base-100 mb-24 border-gray-200 rounded-lg shadow-md">
-            <thead className="bg-base-100">
+    <section className="enterprise-page">
+      <div className="page-heading">
+        <div>
+          <p className="eyebrow">Governance</p>
+          <h1>Activity Logs</h1>
+          <span>Audit trail for users, stock actions, approvals and operational changes.</span>
+        </div>
+        <span className="status-pill">{logs.length} events</span>
+      </div>
+
+      <div className="data-panel">
+        <table className="enterprise-table">
+          <thead>
               <tr>
-                <th className="px-3 py-2 border w-5">#</th>
-                <th className="px-3 py-2 border">Name</th>
-                <th className="px-3 py-2 border">Email</th>
-                <th className="px-3 py-2 border">Action</th>
-                <th className="px-3 py-2 border">Affected Part</th>
-                <th className="px-3 py-2 border">Description</th>
-                <th className="px-3 py-2 border">Time</th>
-                <th className="px-3 py-2 border">IP Address</th>
+                <th>#</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Action</th>
+                <th>Affected Part</th>
+                <th>Description</th>
+                <th>Time</th>
+                <th>IP Address</th>
               </tr>
             </thead>
             <tbody>
               {currentLogs.length > 0 ? (
                 currentLogs.map((log, index) => (
-                  <tr key={log._id}>
-                    <td className="px-3 py-2 border">{indexOfFirstLog + index + 1}</td>
-                    <td className="px-3 py-2 border">{log.userId.name}</td>
-                    <td className="px-3 py-2 border">{log.userId.email}</td>
-                    <td className="px-3 py-2 border">{log.action}</td>
-                    <td className="px-3 py-2 border">{log.entity}</td>
-                    <td className="px-3 py-2 border">{log.description}</td>
-                    <td className="px-4 py-2 border">
+                  <tr key={log._id || `${log.action}-${index}`}>
+                    <td>{indexOfFirstLog + index + 1}</td>
+                    <td>{log.userId?.name || "System"}</td>
+                    <td>{log.userId?.email || "-"}</td>
+                    <td>{log.action || "-"}</td>
+                    <td>{log.entity || "-"}</td>
+                    <td>{log.description || "-"}</td>
+                    <td>
                       <FormattedTime timestamp={log.createdAt} />
                     </td>
-                    <td className="px-4 py-2 border">{log.ipAddress}</td>
+                    <td>{log.ipAddress || "-"}</td>
                   </tr>
                 ))
               ) : (
@@ -88,9 +91,10 @@ function Activitylogpage() {
           </table>
         </div>
 
-        <div className="join mt-4 mb-20 ml-72 flex justify-center">
+        {totalPages > 1 && (
+        <div className="pagination-row">
           <button
-            className="join-item btn"
+            className="sync-button"
             onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
             disabled={currentPage === 1}
           >
@@ -99,22 +103,22 @@ function Activitylogpage() {
           {[...Array(totalPages)].map((_, index) => (
             <button
               key={index}
-              className={`join-item btn ${currentPage === index + 1 ? "btn-active" : ""}`}
+              className={`page-button ${currentPage === index + 1 ? "active" : ""}`}
               onClick={() => setCurrentPage(index + 1)}
             >
               {index + 1}
             </button>
           ))}
           <button
-            className="join-item btn"
+            className="sync-button"
             onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
             disabled={currentPage === totalPages}
           >
             Next
           </button>
         </div>
-      </div>
-    </div>
+        )}
+    </section>
   );
 }
 

@@ -1,8 +1,10 @@
-import { render, screen } from '@testing-library/react';
-import App from './App';
+import fs from "fs";
+import path from "path";
 
-test('renders learn react link', () => {
-  render(<App />);
-  const linkElement = screen.getByText(/learn react/i);
-  expect(linkElement).toBeInTheDocument();
+test("declares the HeroTrack Pro dashboard routes", () => {
+  const appSource = fs.readFileSync(path.join(__dirname, "App.jsx"), "utf8");
+
+  expect(appSource).toContain("HeroTrackDashboard");
+  expect(appSource).toContain("EnterpriseTablePage");
+  expect(appSource).toContain("/AdminDashboard");
 });

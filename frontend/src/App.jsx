@@ -1,174 +1,96 @@
-import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
-import HomePage from "./pages/HomePage";
-import Navbar from "./Components/Navbar";
-import Footer from "./Components/Footer";
-import SignupPage from "./pages/SignupPages";
-import ServicePage from "./pages/ServicePage";
-import LoginPage from "./pages/LoginPage";
-import Profilepage from "./pages/Profilepage";
-import ManagerDashboard from "./pages/ManagerDashboard";
-import AdminDashboard from "./pages/AdminDashboard";
-import StaffDashboard from "./pages/StaffDashboard";
-import Productpage from "./pages/Productpage";
-import Orderpage from "./pages/Orderpage";
-import Salespage from "./pages/Salespage";
-import StockTransaction from "./pages/StockTransaction";
-import Categorypage from "./pages/Categorypage";
-import Notificationpage from "./pages/Notificationpage";
-import Supplierpage from "./pages/Supplierpage";
-import Activitylogpage from "./pages/Activitylogpage";
-import Dashboardpage from "./pages/Dashboardpage";
-import Userstatus from "./pages/Userstatus";
-import NotificationPageRead from "./pages/Notificationpageread"
+import { BrowserRouter as Router, Navigate, Route, Routes } from "react-router-dom";
+import { Toaster } from "react-hot-toast";
+import EnterpriseLayout from "./Components/EnterpriseLayout";
 import ProtectedRoute from "./lib/ProtectedRoute";
-import toast, { Toaster } from "react-hot-toast";
+import Activitylogpage from "./pages/Activitylogpage";
+import EnterpriseTablePage from "./pages/EnterpriseTablePage";
+import HeroTrackDashboard from "./pages/HeroTrackDashboard";
+import HomePage from "./pages/HomePage";
+import LoginPage from "./pages/LoginPage";
+import Notificationpage from "./pages/Notificationpage";
+import NotificationPageRead from "./pages/Notificationpageread";
+import ServicePage from "./pages/ServicePage";
+import SignupPage from "./pages/SignupPages";
+import Userstatus from "./pages/Userstatus";
+
+const legacyRedirects = [
+  { path: "product", target: "spare-parts" },
+  { path: "category", target: "spare-parts" },
+  { path: "supplier", target: "spare-parts" },
+  { path: "stock-transaction", target: "movements" },
+  { path: "order", target: "requests" },
+  { path: "sales", target: "reports" },
+  { path: "Profilepage", target: "" },
+  { path: "NotificationPageRead", target: "notifications" },
+];
+
+const heroTrackPages = [
+  { path: "departments", type: "departments", roles: ["admin"] },
+  { path: "spare-parts", type: "parts", roles: ["admin", "manager", "staff"] },
+  { path: "movements", type: "movements", roles: ["admin", "manager", "staff"] },
+  { path: "department-stock", type: "stock", roles: ["admin", "manager", "staff"] },
+  { path: "requests", type: "requests", roles: ["admin", "manager", "staff"] },
+  { path: "approvals", type: "approvals", roles: ["admin", "manager"] },
+  { path: "reports", type: "reports", roles: ["admin", "manager"] },
+];
+
+const dashboardConfigs = [
+  { path: "/ManagerDashboard", notifications: <NotificationPageRead />, roles: ["manager"] },
+  { path: "/AdminDashboard", notifications: <Notificationpage />, roles: ["admin"] },
+  { path: "/StaffDashboard", notifications: <NotificationPageRead />, roles: ["staff"] },
+];
+
+const protectedElement = (element, allowedRoles) => <ProtectedRoute element={element} allowedRoles={allowedRoles} />;
+
+function DashboardRoutes({ path: dashboardPath, notifications, roles }) {
+  return (
+    <>
+      <Route index element={protectedElement(<HeroTrackDashboard />, roles)} />
+
+      {heroTrackPages.map((page) => (
+        <Route
+          key={page.path}
+          path={page.path}
+          element={protectedElement(<EnterpriseTablePage key={page.type} type={page.type} />, page.roles)}
+        />
+      ))}
+
+      {legacyRedirects.map((redirect) => (
+        <Route
+          key={redirect.path}
+          path={redirect.path}
+          element={protectedElement(<Navigate to={`${dashboardPath}/${redirect.target}`} replace />, roles)}
+        />
+      ))}
+
+      <Route path="activity-log" element={protectedElement(<Activitylogpage />, ["admin", "manager"])} />
+      <Route path="notifications" element={protectedElement(notifications, ["admin", "manager", "staff"])} />
+      <Route path="Userstatus" element={protectedElement(<Userstatus />, ["admin"])} />
+    </>
+  );
+}
 
 function App() {
   return (
     <Router>
-      <div>
-        <Toaster />
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/about" element={<ServicePage />} />
-          <Route path="/SignupPage" element={<SignupPage />} />
-          <Route path="/LoginPage" element={<LoginPage />} />
+      <Toaster />
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/about" element={<ServicePage />} />
+        <Route path="/SignupPage" element={<SignupPage />} />
+        <Route path="/LoginPage" element={<LoginPage />} />
 
+        {dashboardConfigs.map((dashboard) => (
           <Route
-            path="/ManagerDashboard"
-            element={<ProtectedRoute element={<ManagerDashboard />} />}
+            key={dashboard.path}
+            path={dashboard.path}
+            element={protectedElement(<EnterpriseLayout />, dashboard.roles)}
           >
-            <Route
-              index
-              element={<ProtectedRoute element={<Dashboardpage />} />}
-            />
-            <Route
-              path="product"
-              element={<ProtectedRoute element={<Productpage />} />}
-            />
-            <Route
-              path="order"
-              element={<ProtectedRoute element={<Orderpage />} />}
-            />
-            <Route
-              path="sales"
-              element={<ProtectedRoute element={<Salespage />} />}
-            />
-            <Route
-              path="stock-transaction"
-              element={<ProtectedRoute element={<StockTransaction />} />}
-            />
-            <Route
-              path="category"
-              element={<ProtectedRoute element={<Categorypage />} />}
-            />
-            <Route
-              path="NotificationPageRead"
-              element={<ProtectedRoute element={<NotificationPageRead />} />}
-            />
-            <Route
-              path="Profilepage"
-              element={<ProtectedRoute element={<Profilepage />} />}
-            />
-            <Route
-              path="supplier"
-              element={<ProtectedRoute element={<Supplierpage />} />}
-            />
-            <Route
-              path="Userstatus"
-              element={<ProtectedRoute element={<Userstatus />} />}
-            />
-            <Route
-              path="activity-log"
-              element={<ProtectedRoute element={<Activitylogpage />} />}
-            />
+            {DashboardRoutes(dashboard)}
           </Route>
-
-          <Route
-            path="/AdminDashboard"
-            element={<ProtectedRoute element={<AdminDashboard />} />}
-          >
-            <Route
-              path="product"
-              element={<ProtectedRoute element={<Productpage />} />}
-            />
-            <Route
-              path="order"
-              element={<ProtectedRoute element={<Orderpage />} />}
-            />
-            <Route
-              path="sales"
-              element={<ProtectedRoute element={<Salespage />} />}
-            />
-            <Route
-              path="stock-transaction"
-              element={<ProtectedRoute element={<StockTransaction />} />}
-            />
-            <Route
-              path="category"
-              element={<ProtectedRoute element={<Categorypage />} />}
-            />
-            <Route
-              path="notifications"
-              element={<ProtectedRoute element={<Notificationpage />} />}
-            />
-            <Route
-              path="Profilepage"
-              element={<ProtectedRoute element={<Profilepage />} />}
-            />
-            <Route
-              path="supplier"
-              element={<ProtectedRoute element={<Supplierpage />} />}
-            />
-            <Route
-              path="activity-log"
-              element={<ProtectedRoute element={<Activitylogpage />} />}
-            />
-          </Route>
-
-          <Route
-            path="/StaffDashboard"
-            element={<ProtectedRoute element={<StaffDashboard />} />}
-          >
-            <Route
-              path="product"
-              element={<ProtectedRoute element={<Productpage />} />}
-            />
-            <Route
-              path="order"
-              element={<ProtectedRoute element={<Orderpage />} />}
-            />
-            <Route
-              path="sales"
-              element={<ProtectedRoute element={<Salespage />} />}
-            />
-            <Route
-              path="stock-transaction"
-              element={<ProtectedRoute element={<StockTransaction />} />}
-            />
-            <Route
-              path="category"
-              element={<ProtectedRoute element={<Categorypage />} />}
-            />
-            <Route
-              path="NotificationPageRead"
-              element={<ProtectedRoute element={<NotificationPageRead/>} />}
-            />
-            <Route
-              path="Profilepage"
-              element={<ProtectedRoute element={<Profilepage />} />}
-            />
-            <Route
-              path="supplier"
-              element={<ProtectedRoute element={<Supplierpage />} />}
-            />
-            <Route
-              path="activity-log"
-              element={<ProtectedRoute element={<Activitylogpage />} />}
-            />
-          </Route>
-        </Routes>
-      </div>
+        ))}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </Router>
   );
 }

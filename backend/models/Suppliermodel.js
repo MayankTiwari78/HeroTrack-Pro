@@ -10,6 +10,11 @@ const SupplierSchema= new mongoose.Schema({
         type:String,
         require:true
     },
+    supplierCode:{ type:String, unique:true, sparse:true },
+    gstNumber:{ type:String },
+    contactPerson:{ type:String },
+    rating:{ type:Number, default:4 },
+    status:{ type:String, enum:["active","inactive"], default:"active" },
     contactInfo:{
         phone:{type:String},
         email:{type:String},

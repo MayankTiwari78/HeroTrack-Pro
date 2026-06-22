@@ -1,13 +1,12 @@
 import React, { useEffect, useState } from "react";
-import TopNavbar from "../Components/TopNavbar";
 import { IoMdAdd } from "react-icons/io";
 import { MdClose } from "react-icons/md";
 import { useDispatch, useSelector } from "react-redux";
 import image from "../images/user.png";
 import { createNotification, getAllNotifications, deleteNotification } from "../features/notificationSlice"; 
-import { io } from "socket.io-client";
 import toast from 'react-hot-toast';
 import FormattedTime from "../lib/FormattedTime ";
+import socket from "../lib/socket";
 
 function NotificationPage() {
   const dispatch = useDispatch();
@@ -16,18 +15,11 @@ function NotificationPage() {
   const [name, setName] = useState("");
   const [type, setType] = useState("");
   const [isFormVisible, setIsFormVisible] = useState(false);
-  const [socket, setSocket] = useState(null);
 
   useEffect(() => {
-    const newSocket = io("https://advanced-inventory-management-system-v1.onrender.com", {
-      withCredentials: true,
-      transports: ["websocket", "polling"],
-    });
-    setSocket(newSocket);
-
     dispatch(getAllNotifications());
 
-    newSocket.on("newNotification", (newNotification) => {
+    const handleNotification = (newNotification) => {
    
       toast.custom((t) => (
         <div className={`flex items-center p-4 rounded-lg shadow-lg bg-white text-gray-800 ${t.visible ? 'animate-enter' : 'animate-leave'}`}>
@@ -52,10 +44,12 @@ function NotificationPage() {
         position: 'top-right',
       });
       dispatch(getAllNotifications());
-    });
+    };
+
+    socket.on("newNotification", handleNotification);
 
     return () => {
-      newSocket.disconnect();
+      socket.off("newNotification", handleNotification);
     };
   }, [dispatch, Authuser?.ProfilePic]);
 
@@ -81,8 +75,6 @@ function NotificationPage() {
 
   return (
     <div className="bg-base-100 min-h-screen">
-      <TopNavbar />
-
       <div className="max-w-3xl bg-base-100 mx-auto mt-10">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold">Notifications</h1>

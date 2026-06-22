@@ -1,5 +1,6 @@
 const Inventory =require('../models/Inventorymodel')
 const Product = require("../models/Productmodel");
+const { syncInventory } = require("../services/inventoryService");
 
 
 module.exports.addOrUpdateInventory = async (req, res) => {
@@ -27,6 +28,8 @@ module.exports.addOrUpdateInventory = async (req, res) => {
 
  
     await inventory.save();
+    await Product.findByIdAndUpdate(product, { quantity, currentStock: quantity });
+    await syncInventory(product);
 
     res.status(200).json({ success: true, message: "Inventory updated successfully", inventory });
   } catch (error) {

@@ -54,6 +54,12 @@
     ]
   },
   "devDependencies": {
+    "@babel/plugin-proposal-private-property-in-object": "^7.21.11",
     "tailwindcss": "^3.4.17"
+  },
+  "overrides": {
+    "babel-preset-react-app": {
+      "@babel/plugin-proposal-private-property-in-object": "7.21.0-placeholder-for-preset-env.2"
+    }
   }
 }

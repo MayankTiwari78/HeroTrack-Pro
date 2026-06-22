@@ -1,63 +1,67 @@
-# 📦 Inventory Management System (MERN Stack)
+# HeroTrack Pro
 
-A full-stack Inventory Management System built with the MERN stack (MongoDB, Express.js, React.js, Node.js). This application allows users to manage products, track stock levels, handle sales and orders, update in real-time using WebSockets, and maintain user profiles.
+HeroTrack Pro is a MERN-based department-wise spare parts tracking system for Hero MotoCorp plant operations. It includes authentication, departments, spare parts, movement ledgers, approvals, notifications, analytics APIs, MongoDB models, and seed data.
 
----
+## Core Modules
 
-## 🚀 Features
+- Authentication and role-based access
+- Department and spare-part master data
+- Department stock ledger and inventory movement tracking
+- Approval workflow for high-quantity requests
+- Notifications and activity logs
+- Analytics dashboards for stock health, movement flow, approvals, low stock, and monthly usage
 
-### ✅ Core Functionalities
-- 🔄 **Real-Time Data Sync** via WebSockets (Socket.IO)
-- 📦 **Product Management**: Add, edit, delete, and view products with categories and stock tracking
-- 🧾 **Order Management**: Create and manage customer orders
-- 💰 **Sales Tracking**: View daily/weekly/monthly sales and revenue
-- 📊 **Stock Monitoring**: Low-stock alerts, live inventory levels
-- 👤 **User Profile Pages**: Update profile info, view activity and role
-- 🔐 **Authentication & Authorization**: Secure login, JWT-based auth, admin vs staff roles
-- 📈 **Dashboard Analytics**: Key performance indicators (KPIs), charts, and summaries
+## Local Setup
 
----
+Backend:
 
-## 🧰 Tech Stack
-
-| Tech             | Description                       |
-|------------------|-----------------------------------|
-| MongoDB          | NoSQL database                    |
-| Express.js       | Backend framework for Node.js     |
-| React.js         | Frontend UI library               |
-| Node.js          | Backend runtime                   |
-| Socket.IO        | Real-time communication           |
-| Mongoose         | ODM for MongoDB                   |
-| Redux Toolkit    | State management on frontend      |
-| Tailwind CSS     | Modern, utility-first CSS         |
-| JWT              | Authentication & session management |
-
----
-## 📦 Installation
-
-### 1. Clone the repo
 ```bash
-git clone https://github.com/yourusername/inventory-management-mern.git
-cd inventory-management-mern
-```
-```
-# Backend
-cd server
+cd backend
 npm install
-```
-```
-PORT=5000
-MONGO_URI=mongodb://localhost:27017/inventory
-JWT_SECRET=your_jwt_secret
-
-```
-```
-cd ../client
-npm install
+npm start
 ```
 
+Frontend:
+
+```bash
+cd frontend
+npm install
+npm run build
 ```
-# Backend
-cd server
-npm run dev
+
+## Environment
+
+Backend variables are documented in `backend/.env.example`.
+Frontend variables are documented in `frontend/.env.example`.
+
+Required production values:
+
+- `MONGODB_URL`
+- `JWT_SECRET`
+- `CLIENT_URL`
+- `REACT_APP_BACKEND_URL`
+- `REACT_APP_SOCKET_URL`
+
+## Seed Data
+
+The backend seed script creates HeroTrack Pro demo data for departments, categories, suppliers, users, spare parts, department stock, movements, approval requests, and notifications.
+
+```bash
+cd backend
+npm run seed
 ```
+
+The seed script verifies expected record counts after insertion before reporting completion.
+
+Default admin login after seeding:
+
+```text
+user1@herotrack.example
+Hero@12345
+```
+
+## Deployment
+
+- Backend: `backend/render.yaml` includes the Render service definition and `/health` check.
+- Frontend: `frontend/vercel.json` supports SPA routing on Vercel.
+- Frontend production build output is generated with `npm run build` from `frontend`.

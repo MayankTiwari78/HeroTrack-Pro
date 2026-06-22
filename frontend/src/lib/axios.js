@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const fallbackURL = "https://advanced-inventory-management-system-v1.onrender.com";
+const fallbackURL = "http://localhost:3003";
 
 const axiosInstance = axios.create({
     baseURL: `${process.env.REACT_APP_BACKEND_URL|| fallbackURL}/api`,

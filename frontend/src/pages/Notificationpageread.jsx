@@ -1,38 +1,30 @@
 import React, { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { getAllNotifications } from "../features/notificationSlice"; 
-import { io } from "socket.io-client";
 import FormattedTime from "../lib/FormattedTime ";
 import image from "../images/user.png";
-import TopNavbar from "../Components/TopNavbar";
+import socket from "../lib/socket";
 function NotificationPageRead() {
   const dispatch = useDispatch();
   const { notifications } = useSelector((state) => state.notification);
   const { Authuser } = useSelector((state) => state.auth);
 
   useEffect(() => {
-
-    const socket = io("https://advanced-inventory-management-system-v1.onrender.com", {
-      withCredentials: true,
-      transports: ["websocket", "polling"],
-    });
-
-
     dispatch(getAllNotifications());
 
-
-    socket.on("newNotification", () => {
+    const handleNotification = () => {
       dispatch(getAllNotifications());
-    });
+    };
+
+    socket.on("newNotification", handleNotification);
 
     return () => {
-      socket.disconnect();
+      socket.off("newNotification", handleNotification);
     };
   }, [dispatch]);
 
   return (
     <div className="bg-base-100 min-h-screen">
-        <TopNavbar />
       <div className="max-w-3xl mx-auto">
         <h1 className="text-2xl font-bold mb-6">Notifications</h1>
         

@@ -48,6 +48,7 @@ export const logout = createAsyncThunk(
   "auth/logout",
   async (_, { rejectWithValue }) => {
     try {
+      await axiosInstance.post("auth/logout", {}, { withCredentials: true });
       localStorage.removeItem("token");
       localStorage.removeItem("user");
       localStorage.removeItem("authUser");
@@ -167,7 +168,7 @@ const authSlice = createSlice({
       .addCase(signup.fulfilled, (state, action) => {
         state.isUserSignup = false;
         state.Authuser = action.payload.savedUser; 
-        state.token = action.payload.token; 
+        state.token = action.payload.savedUser?.token || null;
 
       })
       .addCase(signup.rejected, (state, action) => {
@@ -182,7 +183,7 @@ const authSlice = createSlice({
       .addCase(login.fulfilled, (state, action) => {
         state.isUserLogin = false;
         state.Authuser = action.payload.user; 
-        state.token = action.payload.token; 
+        state.token = action.payload.user?.token || null;
  
       })
       .addCase(login.rejected, (state, action) => {
@@ -203,11 +204,9 @@ const authSlice = createSlice({
       .addCase(updateProfile.pending, (state) => {
         state.isupdateProfile = true;
       })
-      
-
-      builder.addCase(updateProfile.fulfilled, (state, action) => {
+      .addCase(updateProfile.fulfilled, (state, action) => {
         state.isupdateProfile = false;
-        state.Authuser = { ...state.Authuser, user: action.payload }; 
+        state.Authuser = { ...state.Authuser, ...action.payload, id: action.payload?._id || action.payload?.id || state.Authuser?.id };
       
       })
       
@@ -215,7 +214,7 @@ const authSlice = createSlice({
 
       .addCase(staffUser.fulfilled, (state, action) => {
      
-        state. staffuser = action.payload
+        state.staffuser = action.payload
 
       })
       

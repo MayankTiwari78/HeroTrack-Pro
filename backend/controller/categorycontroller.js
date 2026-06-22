@@ -1,5 +1,5 @@
 const Product=require('../models/Productmodel')
-const Category=require('../models/ Categorymodel')
+const Category=require('../models/Categorymodel')
 const logActivity = require('../libs/logger');
 const StockTransaction = require('../models/StockTranscationmodel');
 
@@ -108,7 +108,7 @@ module.exports.getCategory = async (req, res) => {
 
 module.exports.updateCategory=async(req,res)=>{
     try {
-        const {updatedCategory}=req.body
+        const updatedCategory=req.body.updatedCategory || req.body
         const {CategoryId}=req.params
         const userId=req.user._id;
         const ipAddress=req.ip

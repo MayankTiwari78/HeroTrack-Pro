@@ -4,16 +4,23 @@ const generateToken=require('../libs/Tokengenerator')
 const Cloundinary=require('../libs/Cloundinary') 
 const logActivity = require('../libs/logger');
 
+const activeRoles = ["admin", "manager", "staff"];
+
 
 
 module.exports.signup = async (req, res) => {
   try {
-    const { name, email, password, ProfilePic, role } = req.body;
+    const { name, email, password, role, staffId, department, designation, phone } = req.body;
 
   
     const duplicatedUser = await User.findOne({ email });
     if (duplicatedUser) {
       return res.status(400).json({ error: "User already exists" });
+    }
+
+    const requestedRole = role || "staff";
+    if (!activeRoles.includes(requestedRole)) {
+      return res.status(400).json({ message: "Invalid role. Use admin, manager, or staff." });
     }
 
 
@@ -28,7 +35,11 @@ module.exports.signup = async (req, res) => {
       email,
       password: hashedpassword,
       ProfilePic:"",
-      role,
+      role: requestedRole,
+      staffId,
+      department,
+      designation,
+      phone,
     });
 
 
@@ -90,7 +101,17 @@ module.exports.login=async(req,res)=>{
             return res.status(400).json({message:'Invalid credentials'})
         }
 
+        if (duplicatedUser.isActive === false) {
+          return res.status(403).json({ message: "Account is inactive. Contact administrator." });
+        }
+
+        if (!activeRoles.includes(duplicatedUser.role)) {
+          return res.status(403).json({ message: "403 Unauthorized: Role is no longer active." });
+        }
+
         const token=await generateToken(duplicatedUser,res)
+        duplicatedUser.lastLogin = new Date();
+        await duplicatedUser.save();
 
 
 
@@ -130,7 +151,13 @@ module.exports.login=async(req,res)=>{
 
 module.exports.logout=async(req,res)=>{
   try {
-     res.cookie("Inventorymanagmentsystem",'',{maxAge:0})
+     const isProduction = process.env.NODE_ENV === "production";
+     res.cookie("Inventorymanagmentsystem",'',{
+      maxAge:0,
+      httpOnly:true,
+      sameSite:isProduction ? "None" : "Lax",
+      secure:isProduction,
+    })
        res.status(200).json({message:"Logged out successfully"})
 
   } catch (error) {
@@ -193,7 +220,7 @@ module.exports.updateProfile = async (req, res) => {
 
 module.exports.staffuser = async (req, res) => {
   try {
-    const staffuser = await User.find({ role: "staff" }).select("-password");
+    const staffuser = await User.find({ role: "staff" }).populate("department").select("-password");
 
     if (staffuser.length === 0) {
       return res.status(200).json({ message: "There are no staff users available." });
@@ -208,7 +235,7 @@ module.exports.staffuser = async (req, res) => {
 
 module.exports.manageruser = async (req, res) => {
   try {
-    const manageruser = await User.find({ role: "manager" }).select("-password");
+    const manageruser = await User.find({ role: "manager" }).populate("department").select("-password");
 
     if (manageruser.length === 0) {
       return res.status(200).json({ message: "There are no manager users available." });

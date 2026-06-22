@@ -1,4 +1,6 @@
 const StockTransaction = require('../models/StockTranscationmodel');
+const Product = require('../models/Productmodel');
+const { syncInventory } = require("../services/inventoryService");
 
 
 module.exports.createStockTransaction = async (req, res) => {
@@ -17,6 +19,19 @@ module.exports.createStockTransaction = async (req, res) => {
     });
 
     await newTransaction.save();
+    const productRecord = await Product.findById(product);
+    if (productRecord) {
+      const delta = type === "Stock-in" ? Number(quantity) : -Number(quantity);
+      const nextQuantity = Number(productRecord.quantity || 0) + delta;
+      if (nextQuantity < 0) {
+        await StockTransaction.findByIdAndDelete(newTransaction._id);
+        return res.status(400).json({ success: false, message: "Insufficient stock for stock-out transaction" });
+      }
+      productRecord.quantity = nextQuantity;
+      productRecord.currentStock = nextQuantity;
+      await productRecord.save();
+      await syncInventory(productRecord._id);
+    }
 
     res.status(201).json( {message: "Stock transaction created successfully"});
   } catch (error) {

@@ -25,6 +25,12 @@ const UserSchema= new mongoose.Schema({
         default:'staff',
     
     },
+    staffId:{ type:String, unique:true, sparse:true },
+    department:{ type:mongoose.Schema.Types.ObjectId, ref:"Department" },
+    designation:{ type:String },
+    phone:{ type:String },
+    isActive:{ type:Boolean, default:true },
+    lastLogin:{ type:Date },
     ProfilePic:{
         type:String
    

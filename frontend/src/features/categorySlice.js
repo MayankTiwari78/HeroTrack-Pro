@@ -1,6 +1,5 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import axiosInstance from "../lib/axios";
-import toast from 'react-hot-toast';
 
 const initialState = {
   getallCategory: null,
@@ -117,7 +116,7 @@ const categorySlice = createSlice({
     
       .addCase(RemoveCategory.fulfilled, (state, action) => {
         state.iscategoryremove = true;
-        state.getallCategory= state.getallCategory.filter(category => category ._id !== action.meta.arg);
+        state.getallCategory= state.getallCategory.filter(category => category._id !== action.meta.arg);
    
       })
       

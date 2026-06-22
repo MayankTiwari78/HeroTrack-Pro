@@ -1,6 +1,6 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import axiosInstance from "../lib/axios";
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 
 
 
@@ -191,7 +191,7 @@ extraReducers:(builder)=>{
  })
  .addCase(updatestatusOrder.fulfilled,(state,action)=>{
    state.iseditorder=false 
-   state. editorder=action.payload
+   state.editorder=action.payload
 
 
  })
@@ -222,14 +222,14 @@ extraReducers:(builder)=>{
 
 
 .addCase( getstatusgraphOrder.pending,(state)=>{
-  state. isshowgraph=true
+  state.isshowgraph=true
 
 
 
 })
 .addCase( getstatusgraphOrder.fulfilled,(state,action)=>{
  state.isshowgraph=false 
- state. statusgraph=action.payload
+ state.statusgraph=action.payload
 
 
 })

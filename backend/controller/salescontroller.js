@@ -1,5 +1,6 @@
 const Sale = require("../models/Salesmodel");
 const ProductModel = require('../models/Productmodel');
+const { syncInventory } = require("../services/inventoryService");
 
 
 module.exports.createSale = async (req, res) => {
@@ -20,12 +21,14 @@ module.exports.createSale = async (req, res) => {
         return res.status(400).json({ 
             message: "Insufficient product quantity",
             available: productRecord.quantity,
-            requested: quantity
+            requested: products.quantity
         });
     }
 
     productRecord.quantity -= products.quantity;
+    productRecord.currentStock = productRecord.quantity;
     await productRecord.save();
+    await syncInventory(productRecord._id);
 
 
     const newSale = new Sale({

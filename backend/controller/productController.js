@@ -1,6 +1,7 @@
 const Product=require('../models/Productmodel')
 
 const logActivity=require('../libs/logger')
+const { syncInventory } = require("../services/inventoryService")
 
 module.exports.Addproduct=async(req,res)=>{
   const userId=req.user._id;
@@ -8,20 +9,33 @@ module.exports.Addproduct=async(req,res)=>{
 
     try {
 
-        const { name,   Desciption,Category, Price, quantity } = req.body;
+        const { name, partNumber, partName, Desciption, description, Category, Price, unitCost, quantity, currentStock, manufacturer, reorderLevel, unitOfMeasure } = req.body;
         
    
      
-        if (!name|| !Category || !  Desciption|| !Price || !quantity) {
+        if (!(name || partName) || !Category || !(Desciption || description) || !(Price || unitCost)) {
            return res.status(400).json({ error: "Please provide all product details." });
         }
 
      
         const createdProduct = new Product({
-           name,Desciption, Category, Price, quantity,
+           name:name || partName,
+           partName:partName || name,
+           partNumber,
+           Desciption:Desciption || description,
+           description:description || Desciption,
+           Category,
+           Price:Price || unitCost,
+           unitCost:unitCost || Price,
+           quantity:quantity ?? currentStock ?? 0,
+           currentStock:currentStock ?? quantity ?? 0,
+           manufacturer,
+           reorderLevel,
+           unitOfMeasure,
         });
 
         await createdProduct.save();
+        await syncInventory(createdProduct._id);
 
        await logActivity({
 
@@ -52,9 +66,9 @@ module.exports.Addproduct=async(req,res)=>{
           const totalProduct=await Product.countDocuments({})
      
             
-            if (!Products || Products.length === 0) {
-                return res.status(404).json({ message: "Products not found" });
-            }
+          if (!Products) {
+    return res.status(404).json({ message: "Products not found" });
+}
 
             
 
@@ -103,7 +117,8 @@ module.exports.Addproduct=async(req,res)=>{
 
     module.exports.EditProduct = async (req, res) => {
       try {
-        const { productId, updatedData } = req.body;
+        const productId = req.params.productId || req.body.productId || req.body.id;
+        const updatedData = req.body.updatedData || req.body;
         const userId = req.user._id;
         const ipAddress = req.ip;
     
@@ -122,6 +137,7 @@ module.exports.Addproduct=async(req,res)=>{
         if (!updatedProduct) {
           return res.status(404).json({ message: "Product not found." });
         }
+        await syncInventory(updatedProduct._id);
     
 
         await logActivity({
@@ -155,7 +171,10 @@ module.exports.SearchProduct = async (req, res) => {
       const products = await Product.find({
         $or: [
           { name: { $regex: query, $options: "i" } },
-          { Description: { $regex: query, $options: "i" } },
+          { Desciption: { $regex: query, $options: "i" } },
+          { description: { $regex: query, $options: "i" } },
+          { partNumber: { $regex: query, $options: "i" } },
+          { partName: { $regex: query, $options: "i" } },
        
           { 'Category.name': { $regex: query, $options: 'i' } },
         ],

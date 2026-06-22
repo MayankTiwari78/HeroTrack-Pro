@@ -1,12 +1,14 @@
 const express = require("express");
 const router = express.Router();
 const {createSupplier,searchSupplier,editSupplier,getAllSuppliers,deleteSupplier,getSupplierById} = require("../controller/suppliercontroller");
+const { authmiddleware, authorizeRoles } = require("../middleware/Authmiddleware");
 
-router.post("/createsupplier", createSupplier); 
-router.get("/getallsupplier", getAllSuppliers); 
-router.get("/:supplierId",getSupplierById); 
+router.use(authmiddleware);
+router.post("/createsupplier", authorizeRoles("admin", "manager"), createSupplier);
+router.get("/getallsupplier", getAllSuppliers);
 router.get("/searchSupplier",searchSupplier)
-router.put("/updatesupplier/:supplierId", editSupplier); 
-router.delete("/:supplierId", deleteSupplier); 
+router.get("/:supplierId",getSupplierById);
+router.put("/updatesupplier/:supplierId", authorizeRoles("admin", "manager"), editSupplier);
+router.delete("/:supplierId", authorizeRoles("admin", "manager"), deleteSupplier);
 
 module.exports = router;

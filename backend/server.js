@@ -14,46 +14,43 @@ const inventoryrouter = require('./Routers/inventoryRouter');
 const salesrouter = require('./Routers/salesRouter');
 const supplierrouter = require('./Routers/supplierrouter');
 const stocktransactionrouter = require('./Routers/stocktransactionrouter');
+const departmentRouter = require("./Routers/departmentRouter");
+const sparePartRouter = require("./Routers/sparePartRouter");
+const inventoryMovementRouter = require("./Routers/inventoryMovementRouter");
+const analyticsRouter = require("./Routers/analyticsRouter");
 
 
 require("dotenv").config();
 const PORT = process.env.PORT || 3003;
+const allowedOrigins = (process.env.CLIENT_URL || "http://localhost:3000,https://hero-track-pro.vercel.app")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
 const app = express();
 const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: "https://advanced-inventory-management-system.vercel.app",
-    methods: ["GET", "POST","PUT","DELETE"],
+    origin: allowedOrigins,
+    methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
   },
 });
 
 app.use(cors({
-  origin:"https://advanced-inventory-management-system.vercel.app",  
+  origin: allowedOrigins,
   methods: ["GET", "POST", "PUT", "DELETE"],
   credentials: true,
 }));
 
 
-
-io.on("connection", (socket) => {
-  console.log("A user connected");
-
- 
-  socket.on("disconnect", () => {
-    console.log("A user disconnected");
-  });
-})
-
-
-
-
 app.use(express.json({limit: "10mb"}));
-app.use(express.json());
 app.set("io", io);
 app.use(cookieParser());
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok", service: "hero-track-pro-api" });
+});
 app.use('/api/auth', authrouter);
 app.use('/api/product', productrouter);
 app.use('/api/order', orderrouter);
@@ -64,13 +61,17 @@ app.use('/api/inventory', inventoryrouter);
 app.use('/api/sales', salesrouter);
 app.use('/api/supplier', supplierrouter);
 app.use("/api/stocktransaction", stocktransactionrouter);
+app.use("/api/departments", departmentRouter);
+app.use("/api/spare-parts", sparePartRouter);
+app.use("/api/inventory-movements", inventoryMovementRouter);
+app.use("/api/analytics", analyticsRouter);
 
 
 
 
 server.listen(PORT, () => {
   MongoDBconfig();
-  console.log(`The server is running at port ${PORT}`);
+  console.info(`The server is running at port ${PORT}`);
 });
 
 
