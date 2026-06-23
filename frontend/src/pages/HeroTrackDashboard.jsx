@@ -80,24 +80,36 @@ function HeroTrackDashboard() {
         const canViewAnalytics = ["admin", "manager"].includes(Authuser?.role);
 
         if (canViewAnalytics) {
-          const [summaryRes, partsRes, movementsRes, stockRes, consumptionRes, mostUsedRes, approvalsRes, notificationsRes] = await Promise.all([
-            axiosInstance.get("analytics/summary"),
-            axiosInstance.get("spare-parts"),
-            axiosInstance.get("inventory-movements?limit=200"),
-            axiosInstance.get("inventory-movements/department-stock"),
-            axiosInstance.get("analytics/department-consumption"),
-            axiosInstance.get("analytics/most-used-parts"),
-            axiosInstance.get("analytics/approval-metrics"),
-            axiosInstance.get("notification/allNotification"),
-          ]);
-          setSummary(summaryRes.data.summary || {});
-          setParts(partsRes.data.parts || []);
-          setMovements(movementsRes.data.movements || []);
-          setDepartmentStocks(stockRes.data.stocks || []);
-          setDepartmentConsumption(consumptionRes.data.data || []);
-          setMostUsed(mostUsedRes.data.data || []);
-          setApprovalMetrics(approvalsRes.data.data || []);
-          setNotifications(Array.isArray(notificationsRes.data) ? notificationsRes.data : []);
+          const summaryRes = await axiosInstance.get("analytics/summary");
+setSummary(summaryRes.data.summary || {});
+
+const results = await Promise.allSettled([
+  axiosInstance.get("spare-parts"),
+  axiosInstance.get("inventory-movements?limit=200"),
+  axiosInstance.get("inventory-movements/department-stock"),
+  axiosInstance.get("analytics/department-consumption"),
+  axiosInstance.get("analytics/most-used-parts"),
+  axiosInstance.get("analytics/approval-metrics"),
+  axiosInstance.get("notification/allNotification"),
+]);
+
+const [
+  partsRes,
+  movementsRes,
+  stockRes,
+  consumptionRes,
+  mostUsedRes,
+  approvalsRes,
+  notificationsRes,
+] = results.map((r) => (r.status === "fulfilled" ? r.value : { data: {} }));
+
+setParts(partsRes.data.parts || []);
+setMovements(movementsRes.data.movements || []);
+setDepartmentStocks(stockRes.data.stocks || []);
+setDepartmentConsumption(consumptionRes.data.data || []);
+setMostUsed(mostUsedRes.data.data || []);
+setApprovalMetrics(approvalsRes.data.data || []);
+setNotifications(Array.isArray(notificationsRes.data) ? notificationsRes.data : []);
           return;
         }
 
