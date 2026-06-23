@@ -1,11 +1,17 @@
+const jwt = require("jsonwebtoken");
+const User = require("../models/Usermodel");
+require("dotenv").config();
+
+const activeRoles = ["admin", "manager", "staff"];
+
 module.exports.authmiddleware = async (req, res, next) => {
   try {
-    const cookieToken = req.cookies.Inventorymanagmentsystem;
+    const cookieToken = req.cookies?.Inventorymanagmentsystem;
 
-    const headerToken =
-      req.headers.authorization?.startsWith("Bearer ")
-        ? req.headers.authorization.split(" ")[1]
-        : null;
+    const authHeader = req.headers.authorization || "";
+    const headerToken = authHeader.startsWith("Bearer ")
+      ? authHeader.split(" ")[1]
+      : null;
 
     const token = cookieToken || headerToken;
 
@@ -41,7 +47,70 @@ module.exports.authmiddleware = async (req, res, next) => {
     next();
   } catch (error) {
     console.error("Token verification error:", error.message);
+    return res.status(401).json({
+      message: "Unauthorized: Invalid or expired token.",
+    });
+  }
+};
 
+module.exports.authorizeRoles = (...roles) => {
+  const allowedRoles = roles.filter((role) => activeRoles.includes(role));
+
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({
+        message: "Unauthorized: Login required.",
+      });
+    }
+
+    if (!allowedRoles.includes(req.user.role)) {
+      return res.status(403).json({
+        message: "403 Unauthorized: Access denied for this role.",
+      });
+    }
+
+    next();
+  };
+};
+
+module.exports.adminmiddleware = async (req, res, next) => {
+  try {
+    const user = req.user;
+
+    if (!user) {
+      return res.status(403).json({ message: "Access denied." });
+    }
+
+    if (user.role !== "admin") {
+      return res.status(403).json({
+        message: "Access denied. admin role required.",
+      });
+    }
+
+    next();
+  } catch (error) {
+    return res.status(401).json({
+      message: "Unauthorized: Invalid or expired token.",
+    });
+  }
+};
+
+module.exports.managermiddleware = async (req, res, next) => {
+  try {
+    const user = req.user;
+
+    if (!user) {
+      return res.status(403).json({ message: "Access denied." });
+    }
+
+    if (user.role !== "manager") {
+      return res.status(403).json({
+        message: "Access denied. manager role required.",
+      });
+    }
+
+    next();
+  } catch (error) {
     return res.status(401).json({
       message: "Unauthorized: Invalid or expired token.",
     });
