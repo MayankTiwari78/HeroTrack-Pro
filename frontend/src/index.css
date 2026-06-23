@@ -969,6 +969,19 @@ body {
   grid-template-columns: repeat(3, minmax(170px, 1fr));
 }
 
+.enterprise-form.enterprise-filters {
+  grid-template-columns: repeat(4, minmax(150px, 1fr)) auto;
+  align-items: end;
+}
+
+.enterprise-filters label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .enterprise-form input,
 .enterprise-form select {
   min-height: 40px;

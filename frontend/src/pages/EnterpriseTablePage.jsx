@@ -17,6 +17,20 @@ const movementTypes = [
   "adjustment",
 ];
 
+const filterableTypes = ["parts", "movements", "requests", "approvals"];
+const initialTableFilters = {
+  department: "",
+  status: "",
+  dateFrom: "",
+  dateTo: "",
+};
+const statusOptionsByType = {
+  parts: ["active", "inactive", "discontinued"],
+  movements: ["not_required", "pending", "approved", "rejected"],
+  requests: ["pending", "approved", "rejected"],
+  approvals: ["pending", "approved", "rejected"],
+};
+
 const configs = {
   departments: {
     title: "Department Management",
@@ -88,6 +102,20 @@ const compactLabel = (label, fallback = "Item") => {
 const getRowKey = (row, index) =>
   row._id || row.requestCode || row.transactionCode || row.department?._id || row.department?.name || `row-${index}`;
 
+const normalizeText = (value) => String(value || "").trim().toLowerCase();
+const getEntityId = (entity) => String(entity?._id || entity || "");
+const getRowParts = (row, type) => {
+  if (type === "parts") return [row];
+  if (type === "movements") return row.part ? [row.part] : [];
+  return row.items?.map((item) => item.part).filter(Boolean) || [];
+};
+const getRowDepartmentIds = (row) =>
+  [row.department, row.fromDepartment, row.toDepartment, row.movement?.fromDepartment, row.movement?.toDepartment]
+    .map(getEntityId)
+    .filter(Boolean);
+const getRowStatus = (row) => normalizeText(row.status ?? row.approvalStatus);
+const getRowDate = (row) => row.transactionDate || row.createdAt || row.updatedAt || row.lastUpdated;
+
 const isLowStockPart = (part) =>
   Number(part.currentStock ?? part.quantity ?? 0) <= Number(part.reorderLevel || 10);
 
@@ -110,8 +138,10 @@ function EnterpriseTablePage({ type }) {
   const { Authuser } = useSelector((state) => state.auth);
   const [rows, setRows] = useState([]);
   const [query, setQuery] = useState("");
+  const [tableFilters, setTableFilters] = useState(initialTableFilters);
   const [departments, setDepartments] = useState([]);
   const [parts, setParts] = useState([]);
+  const [partDepartmentIds, setPartDepartmentIds] = useState({});
   const [reportData, setReportData] = useState(emptyReportData);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({});
@@ -143,17 +173,31 @@ function EnterpriseTablePage({ type }) {
 
   useEffect(() => {
     setQuery("");
+    setTableFilters({ ...initialTableFilters });
   }, [location.pathname, location.search, type]);
 
   useEffect(() => {
     const load = async () => {
-      if (!["movements", "stock", "requests"].includes(type)) return;
-      const [departmentRes, partRes] = await Promise.all([
+      if (![...filterableTypes, "stock"].includes(type)) return;
+      const needsParts = ["movements", "stock", "requests"].includes(type);
+      const [departmentRes, partRes, stockRes] = await Promise.all([
         axiosInstance.get("departments"),
-        axiosInstance.get("spare-parts"),
+        needsParts ? axiosInstance.get("spare-parts") : Promise.resolve(null),
+        type === "parts" ? axiosInstance.get("inventory-movements/department-stock") : Promise.resolve(null),
       ]);
       setDepartments(departmentRes.data.departments || []);
-      setParts(partRes.data.parts || []);
+      if (partRes) setParts(partRes.data.parts || []);
+      if (stockRes) {
+        const departmentIdsByPart = (stockRes.data.stocks || []).reduce((result, stock) => {
+          const partId = getEntityId(stock.part);
+          const departmentId = getEntityId(stock.department);
+          if (!partId || !departmentId) return result;
+          result[partId] = result[partId] || [];
+          if (!result[partId].includes(departmentId)) result[partId].push(departmentId);
+          return result;
+        }, {});
+        setPartDepartmentIds(departmentIdsByPart);
+      }
     };
     load().catch(() => {});
   }, [type]);
@@ -204,10 +248,41 @@ function EnterpriseTablePage({ type }) {
     return nextRows;
   }, [directionParam, filterParam, rows, sortParam, statusParam, type]);
 
-  const filteredRows = useMemo(
-    () => displayedRows.filter((row) => JSON.stringify(row).toLowerCase().includes(query.toLowerCase())),
-    [displayedRows, query]
-  );
+  const filteredRows = useMemo(() => {
+    const normalizedQuery = normalizeText(query);
+    const fromTimestamp = tableFilters.dateFrom ? new Date(`${tableFilters.dateFrom}T00:00:00`).getTime() : null;
+    const toTimestamp = tableFilters.dateTo ? new Date(`${tableFilters.dateTo}T23:59:59.999`).getTime() : null;
+
+    return displayedRows.filter((row) => {
+      if (normalizedQuery) {
+        const partMatches = getRowParts(row, type).some((part) =>
+          normalizeText(`${part?.partName || part?.name || ""} ${part?.partNumber || ""}`).includes(normalizedQuery)
+        );
+        const recordMatches = JSON.stringify(row).toLowerCase().includes(normalizedQuery);
+        if (!partMatches && !recordMatches) return false;
+      }
+
+      if (!filterableTypes.includes(type)) return true;
+
+      if (tableFilters.department) {
+        const departmentIds = type === "parts"
+          ? partDepartmentIds[getEntityId(row)] || []
+          : getRowDepartmentIds(row);
+        if (!departmentIds.includes(tableFilters.department)) return false;
+      }
+
+      if (tableFilters.status && getRowStatus(row) !== tableFilters.status) return false;
+
+      if (fromTimestamp || toTimestamp) {
+        const rowTimestamp = new Date(getRowDate(row)).getTime();
+        if (Number.isNaN(rowTimestamp)) return false;
+        if (fromTimestamp && rowTimestamp < fromTimestamp) return false;
+        if (toTimestamp && rowTimestamp > toTimestamp) return false;
+      }
+
+      return true;
+    });
+  }, [displayedRows, partDepartmentIds, query, tableFilters, type]);
 
   const activeBadges = useMemo(() => {
     const badges = [];
@@ -218,6 +293,12 @@ function EnterpriseTablePage({ type }) {
   }, [directionParam, filterParam, sortParam, statusParam, type]);
 
   const updateForm = (field, value) => setForm((current) => ({ ...current, [field]: value }));
+  const updateTableFilter = (field, value) =>
+    setTableFilters((current) => ({ ...current, [field]: value }));
+  const clearTableFilters = () => {
+    setQuery("");
+    setTableFilters({ ...initialTableFilters });
+  };
   const canManageMasterData = ["admin", "manager"].includes(Authuser?.role);
 
   const submitRecord = async (event) => {
@@ -475,9 +556,57 @@ function EnterpriseTablePage({ type }) {
         <div className="heading-actions">
           {type === "stock" && canManageMasterData && <button className="sync-button" onClick={syncInventory}>Sync Inventory</button>}
           {activeBadges.map((badge) => <span className="status-pill amber" key={badge}>{badge}</span>)}
-          <input className="enterprise-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search records" />
+          <input
+            className="enterprise-search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder={filterableTypes.includes(type) ? "Search part name or number" : "Search records"}
+            aria-label={filterableTypes.includes(type) ? "Search by part name or part number" : "Search records"}
+          />
         </div>
       </div>
+
+      {filterableTypes.includes(type) && (
+        <div className="enterprise-form enterprise-filters" aria-label="Record filters">
+          <label>
+            <span>Department</span>
+            <select value={tableFilters.department} onChange={(event) => updateTableFilter("department", event.target.value)}>
+              <option value="">All departments</option>
+              {departments.map((department) => (
+                <option key={department._id} value={department._id}>{department.name}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>Status</span>
+            <select value={tableFilters.status} onChange={(event) => updateTableFilter("status", event.target.value)}>
+              <option value="">All statuses</option>
+              {(statusOptionsByType[type] || []).map((status) => (
+                <option key={status} value={status}>{status.replaceAll("_", " ")}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>From date</span>
+            <input
+              type="date"
+              value={tableFilters.dateFrom}
+              max={tableFilters.dateTo || undefined}
+              onChange={(event) => updateTableFilter("dateFrom", event.target.value)}
+            />
+          </label>
+          <label>
+            <span>To date</span>
+            <input
+              type="date"
+              value={tableFilters.dateTo}
+              min={tableFilters.dateFrom || undefined}
+              onChange={(event) => updateTableFilter("dateTo", event.target.value)}
+            />
+          </label>
+          <button type="button" onClick={clearTableFilters}>Clear Filters</button>
+        </div>
+      )}
 
       {renderForm()}
       {renderReports()}
