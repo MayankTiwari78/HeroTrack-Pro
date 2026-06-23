@@ -5,6 +5,12 @@ import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import { FiCheckCircle, FiGrid, FiShield } from "react-icons/fi";
+import toast from "react-hot-toast";
+
+const emailPattern = /^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/;
+const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+const passwordValidationMessage =
+  "Password must be at least 8 characters and include an uppercase letter, a lowercase letter, a number, and a special character.";
 
 function SignupPage() {
   const { isUserSignup } = useSelector((state) => state.auth);
@@ -18,8 +24,15 @@ function SignupPage() {
 
   const schema = yup.object().shape({
     name: yup.string().required("Name is required"),
-    email: yup.string().email("Invalid email").required("Email is required"),
-    password: yup.string().min(6, "Password must be at least 6 characters").required("Password is required"),
+    email: yup
+      .string()
+      .trim()
+      .required("Please enter a valid email address.")
+      .matches(emailPattern, "Please enter a valid email address."),
+    password: yup
+      .string()
+      .required("Password is required")
+      .matches(passwordPattern, passwordValidationMessage),
     role: yup.string().required("Role is required"),
   });
 
@@ -35,10 +48,13 @@ function SignupPage() {
     dispatch(signup(data))
       .unwrap()
       .then((result) => {
+        toast.success("Account created successfully.");
         const role = result.savedUser?.role;
         navigator(dashboardByRole[role] || "/LoginPage");
       })
-      .catch(() => {});
+      .catch((message) => {
+        toast.error(message || "Signup failed");
+      });
   };
 
   return (
@@ -51,7 +67,7 @@ function SignupPage() {
             <p className="mt-2 text-gray-600">Register a role-based ERP user for Hero MotoCorp spare-parts operations.</p>
           </div>
 
-          <form onSubmit={handleSubmit(onSubmit)}>
+          <form onSubmit={handleSubmit(onSubmit)} noValidate>
             <div className="mb-6">
               <label htmlFor="name" className="block text-gray-700 text-sm font-medium mb-2">
                 Name
@@ -110,8 +126,13 @@ function SignupPage() {
               <label htmlFor="2fa" className="text-gray-600 text-sm">Agree to terms and conditions</label>
             </div>
 
-            <button type="submit" className="auth-primary-button w-full rounded-md bg-[#d71920] p-3 font-black text-white transition duration-300 hover:bg-[#b9141a]">
-              {isUserSignup ? "Signing...." : "Sign Up"}
+            <button
+              type="submit"
+              disabled={isUserSignup}
+              aria-busy={isUserSignup}
+              className="auth-primary-button w-full rounded-md bg-[#d71920] p-3 font-black text-white transition duration-300 hover:bg-[#b9141a] disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              {isUserSignup ? "Creating account..." : "Sign Up"}
             </button>
           </form>
 

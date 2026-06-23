@@ -5,17 +5,41 @@ const Cloundinary=require('../libs/Cloundinary')
 const logActivity = require('../libs/logger');
 
 const activeRoles = ["admin", "manager", "staff"];
+const emailPattern = /^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/;
+const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+
+const duplicateAccountResponse = {
+  success: false,
+  message: "Account already exists. Please login.",
+};
 
 
 
 module.exports.signup = async (req, res) => {
   try {
     const { name, email, password, role, staffId, department, designation, phone } = req.body;
+    const trimmedEmail = typeof email === "string" ? email.trim() : "";
 
-  
-    const duplicatedUser = await User.findOne({ email });
+    if (!emailPattern.test(trimmedEmail)) {
+      return res.status(400).json({
+        success: false,
+        message: "Please enter a valid email address.",
+      });
+    }
+
+    const duplicatedUser = await User.findOne({ email: trimmedEmail }).collation({
+      locale: "en",
+      strength: 2,
+    });
     if (duplicatedUser) {
-      return res.status(400).json({ error: "User already exists" });
+      return res.status(400).json(duplicateAccountResponse);
+    }
+
+    if (typeof password !== "string" || !passwordPattern.test(password)) {
+      return res.status(400).json({
+        success: false,
+        message: "Password must be at least 8 characters and include an uppercase letter, a lowercase letter, a number, and a special character.",
+      });
     }
 
     const requestedRole = role || "staff";
@@ -32,7 +56,7 @@ module.exports.signup = async (req, res) => {
 
     const newUser = new User({
       name,
-      email,
+      email: trimmedEmail,
       password: hashedpassword,
       ProfilePic:"",
       role: requestedRole,
@@ -75,6 +99,9 @@ module.exports.signup = async (req, res) => {
 
   } catch (error) {
     console.error("Error during signup:", error.message);
+    if (error?.code === 11000 && (error?.keyPattern?.email || error?.keyValue?.email)) {
+      return res.status(400).json(duplicateAccountResponse);
+    }
     res.status(400).json({ error: "Error during signup: " + error.message });
   }
 };
