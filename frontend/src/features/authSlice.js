@@ -1,159 +1,173 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import axiosInstance from "../lib/axios";
-import toast from 'react-hot-toast';
 
-const initialState = {
-  Authuser: JSON.parse(localStorage.getItem("user")) || null, 
-  isUserSignup: false,
-  staffuser:null,
-  manageruser:null,
-  adminuser:null,
-  isUserLogin: false,
-  token: localStorage.getItem("token") || null,
-  isupdateProfile: false,
+const readStoredUser = () => {
+  try {
+    return JSON.parse(localStorage.getItem("user")) || null;
+  } catch {
+    localStorage.removeItem("user");
+    return null;
+  }
 };
 
+const getErrorMessage = (error, fallback) => (
+  error.response?.data?.message || error.response?.data?.error || fallback
+);
+
+const initialState = {
+  Authuser: readStoredUser(),
+  adminuser: null,
+  error: null,
+  isFetchingUserActivity: false,
+  isUserLogin: false,
+  isUserSignup: false,
+  isupdateProfile: false,
+  manageruser: null,
+  staffuser: null,
+  token: localStorage.getItem("token") || null,
+  userActivityStatus: null,
+};
 
 export const signup = createAsyncThunk(
   "auth/signup",
   async (credentials, { rejectWithValue }) => {
     try {
       const response = await axiosInstance.post("auth/signup", credentials, { withCredentials: true });
-      localStorage.setItem("user", JSON.stringify(response.data.savedUser)); 
-      localStorage.setItem("token", response.data.savedUser.token); 
+      localStorage.setItem("user", JSON.stringify(response.data.savedUser));
+      localStorage.setItem("token", response.data.savedUser.token);
       return response.data;
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message || error.response?.data?.error || "Signup failed");
+      return rejectWithValue(getErrorMessage(error, "Signup failed"));
     }
   }
 );
 
-// Login
 export const login = createAsyncThunk(
   "auth/login",
   async (credentials, { rejectWithValue }) => {
     try {
       const response = await axiosInstance.post("auth/login", credentials, { withCredentials: true });
-      localStorage.setItem("user", JSON.stringify(response.data.user)); 
-      localStorage.setItem("token", response.data.user.token); 
+      localStorage.setItem("user", JSON.stringify(response.data.user));
+      localStorage.setItem("token", response.data.user.token);
       return response.data;
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message || "Login failed");
+      return rejectWithValue(getErrorMessage(error, "Login failed"));
     }
   }
 );
 
-// Logout
 export const logout = createAsyncThunk(
   "auth/logout",
   async (_, { rejectWithValue }) => {
     try {
       await axiosInstance.post("auth/logout", {}, { withCredentials: true });
+      return null;
+    } catch (error) {
+      return rejectWithValue(getErrorMessage(error, "Logout failed"));
+    } finally {
       localStorage.removeItem("token");
       localStorage.removeItem("user");
       localStorage.removeItem("authUser");
-      return null;
-    } catch (error) {
-      return rejectWithValue(error.response?.data?.message || "Logout failed");
     }
   }
 );
+
 export const updateProfile = createAsyncThunk(
-  'auth/updateProfile',
+  "auth/updateProfile",
   async (base64Image, { rejectWithValue }) => {
     try {
-  
-      const storedUser = JSON.parse(localStorage.getItem('user'));
-      const token = localStorage.getItem('token');
-
-
-      if (!storedUser || !token) {
-        return rejectWithValue('User not authenticated. Please log in again.');
+      const storedUser = readStoredUser();
+      if (!storedUser) {
+        return rejectWithValue("User not authenticated. Please log in again.");
       }
 
-     
       const response = await axiosInstance.put(
-        'auth/updateProfile',
+        "auth/updateProfile",
         { ProfilePic: base64Image },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-        }
+        { withCredentials: true }
       );
+      const updatedUser = response.data?.updatedUser;
 
-      const updatedData = response.data;
-
-    
-      if (updatedData && updatedData.updatedUser) {
-       
-        localStorage.setItem('user', JSON.stringify(updatedData.updatedUser));
-        return updatedData.updatedUser; // Return the updated user object
-      } else {
-        throw new Error('Unexpected response structure');
-      }
+      if (!updatedUser) throw new Error("Unexpected response structure");
+      const mergedUser = {
+        ...storedUser,
+        ...updatedUser,
+        id: updatedUser?._id || updatedUser?.id || storedUser.id,
+        token: storedUser.token || localStorage.getItem("token"),
+      };
+      localStorage.setItem("user", JSON.stringify(mergedUser));
+      return mergedUser;
     } catch (error) {
-      console.error('Update profile error:', error);
-      return rejectWithValue(
-        error.response?.data?.message || 'Failed to update profile'
-      );
+      return rejectWithValue(getErrorMessage(error, "Failed to update profile"));
     }
   }
 );
 
-
-
-
-
-export const staffUser=createAsyncThunk('auth/staffuser',async(_,{rejectWithValue})=>{
-  try {
-
-    const response=await axiosInstance.get('auth/staffuser',_,{ withCredentials: true });
-    return response.data
-    
-  } catch (error) {
-    return rejectWithValue(error.response?.data?.message || 'Failed to get staff user');
+export const staffUser = createAsyncThunk(
+  "auth/staffuser",
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.get("auth/staffuser", { withCredentials: true });
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(getErrorMessage(error, "Failed to get staff users"));
+    }
   }
-})
+);
 
-
-
-export const managerUser=createAsyncThunk('auth/manageruser',async(_,{rejectWithValue})=>{
-  try {
-
-    const response=await axiosInstance.get('auth/manageruser',_,{ withCredentials: true });
-    return response.data
-    
-  } catch (error) {
-    return rejectWithValue(error.response?.data?.message || 'Failed to get manager user');
+export const managerUser = createAsyncThunk(
+  "auth/manageruser",
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.get("auth/manageruser", { withCredentials: true });
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(getErrorMessage(error, "Failed to get manager users"));
+    }
   }
-})
+);
 
-
-
-export const adminUser=createAsyncThunk('auth/adminuser',async(_,{rejectWithValue})=>{
-  try {
-
-    const response=await axiosInstance.get('auth/adminuser',_,{ withCredentials: true });
-    return response.data
-    
-  } catch (error) {
-    return rejectWithValue(error.response?.data?.message || 'Failed to get admin  user');
+export const adminUser = createAsyncThunk(
+  "auth/adminuser",
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.get("auth/adminuser", { withCredentials: true });
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(getErrorMessage(error, "Failed to get admin users"));
+    }
   }
-})
+);
 
-export const removeusers=createAsyncThunk("auth/removeuser",async(UserId,{rejectWithValue})=>{
-  try {
-
-    const response=await axiosInstance.delete(`auth/removeuser/${UserId}`,UserId,{ withCredentials: true });
-
-    return response.data
-
-  } catch (error) {
-     return rejectWithValue(error.response?.data?.message || 'Failed to delete  user');
+export const removeusers = createAsyncThunk(
+  "auth/removeuser",
+  async (userId, { rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.delete(`auth/removeuser/${userId}`, { withCredentials: true });
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(getErrorMessage(error, "Failed to delete user"));
+    }
   }
-})
+);
+
+export const getUserActivityStatus = createAsyncThunk(
+  "auth/userActivityStatus",
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.get("auth/user-activity-status", { withCredentials: true });
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(getErrorMessage(error, "Failed to load user activity status"));
+    }
+  }
+);
+
+const clearSession = (state) => {
+  state.Authuser = null;
+  state.token = null;
+  state.userActivityStatus = null;
+};
 
 const authSlice = createSlice({
   name: "auth",
@@ -161,117 +175,93 @@ const authSlice = createSlice({
   reducers: {},
   extraReducers: (builder) => {
     builder
-     
       .addCase(signup.pending, (state) => {
+        state.error = null;
         state.isUserSignup = true;
       })
       .addCase(signup.fulfilled, (state, action) => {
+        state.Authuser = action.payload.savedUser;
         state.isUserSignup = false;
-        state.Authuser = action.payload.savedUser; 
         state.token = action.payload.savedUser?.token || null;
-
       })
       .addCase(signup.rejected, (state, action) => {
+        state.error = action.payload;
         state.isUserSignup = false;
-
       })
-
-      
       .addCase(login.pending, (state) => {
+        state.error = null;
         state.isUserLogin = true;
       })
       .addCase(login.fulfilled, (state, action) => {
+        state.Authuser = action.payload.user;
         state.isUserLogin = false;
-        state.Authuser = action.payload.user; 
         state.token = action.payload.user?.token || null;
- 
       })
       .addCase(login.rejected, (state, action) => {
+        state.error = action.payload;
         state.isUserLogin = false;
-
       })
-
-    
-      .addCase(logout.fulfilled, (state) => {
-        state.Authuser = null;
-        state.token = null;
-        toast.success("Successfully logged out!");
-      })
+      .addCase(logout.fulfilled, clearSession)
       .addCase(logout.rejected, (state, action) => {
-     
+        clearSession(state);
+        state.error = action.payload;
       })
-
       .addCase(updateProfile.pending, (state) => {
+        state.error = null;
         state.isupdateProfile = true;
       })
       .addCase(updateProfile.fulfilled, (state, action) => {
+        state.Authuser = {
+          ...state.Authuser,
+          ...action.payload,
+          id: action.payload?._id || action.payload?.id || state.Authuser?.id,
+        };
         state.isupdateProfile = false;
-        state.Authuser = { ...state.Authuser, ...action.payload, id: action.payload?._id || action.payload?.id || state.Authuser?.id };
-      
       })
-      
-    
-
+      .addCase(updateProfile.rejected, (state, action) => {
+        state.error = action.payload;
+        state.isupdateProfile = false;
+      })
       .addCase(staffUser.fulfilled, (state, action) => {
-     
-        state.staffuser = action.payload
-
+        state.staffuser = action.payload;
       })
-      
-     
-      .addCase(staffUser.rejected,(state,action)=>{
-
- 
+      .addCase(staffUser.rejected, (state, action) => {
+        state.error = action.payload;
       })
-
-      
-
-
       .addCase(managerUser.fulfilled, (state, action) => {
-    
-        state.manageruser = action.payload
-
+        state.manageruser = action.payload;
       })
-      
-     
-      .addCase(managerUser.rejected,(state,action)=>{
-   
-      
+      .addCase(managerUser.rejected, (state, action) => {
+        state.error = action.payload;
       })
-    
-
-
-
-
       .addCase(adminUser.fulfilled, (state, action) => {
-      
-        state.adminuser = action.payload
-        
+        state.adminuser = action.payload;
       })
-      
-     
-      .addCase(adminUser.rejected,(state,action)=>{
-      
-       
+      .addCase(adminUser.rejected, (state, action) => {
+        state.error = action.payload;
       })
-
-
       .addCase(removeusers.fulfilled, (state, action) => {
-      
-      
-        
+        if (state.userActivityStatus?.users) {
+          state.userActivityStatus.users = state.userActivityStatus.users.filter(
+            (user) => user._id !== action.payload.userId
+          );
+        }
       })
-      
-     
-      .addCase(removeusers.rejected,(state,action)=>{
-      
-      
+      .addCase(removeusers.rejected, (state, action) => {
+        state.error = action.payload;
       })
-    
-
-
-
-  
+      .addCase(getUserActivityStatus.pending, (state) => {
+        state.error = null;
+        state.isFetchingUserActivity = true;
+      })
+      .addCase(getUserActivityStatus.fulfilled, (state, action) => {
+        state.isFetchingUserActivity = false;
+        state.userActivityStatus = action.payload;
+      })
+      .addCase(getUserActivityStatus.rejected, (state, action) => {
+        state.error = action.payload;
+        state.isFetchingUserActivity = false;
+      });
   },
 });
 

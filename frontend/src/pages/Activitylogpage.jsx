@@ -1,26 +1,22 @@
 import { useDispatch, useSelector } from "react-redux";
-import { useEffect, useState } from "react";
-import { getAllActivityLogs, getsingleUserActivityLogs } from "../features/activitySlice";
+import { useEffect, useMemo, useState } from "react";
+import { activityLogReceived, getAllActivityLogs } from "../features/activitySlice";
 import FormattedTime from "../lib/FormattedTime ";
 import socket from "../lib/socket";
 
 function Activitylogpage() {
-  const [logs, setLogs] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const logsPerPage = 10;
 
   const { activityLogs } = useSelector((state) => state.activity);
-  const { Authuser } = useSelector((state) => state.auth);
   const dispatch = useDispatch();
 
   useEffect(() => {
-    if (Authuser?.id) {
-      dispatch(getAllActivityLogs());
-      dispatch(getsingleUserActivityLogs(Authuser.id));
-    }
+    dispatch(getAllActivityLogs());
 
     const handleActivityLog = (newLog) => {
-      setLogs((prevLogs) => [newLog, ...prevLogs]);
+      dispatch(activityLogReceived(newLog));
+      setCurrentPage(1);
     };
 
     socket.on("newActivityLog", handleActivityLog);
@@ -28,16 +24,19 @@ function Activitylogpage() {
     return () => {
       socket.off("newActivityLog", handleActivityLog);
     };
-  }, [dispatch, Authuser?.id]);
+  }, [dispatch]);
 
-  useEffect(() => {
-    setLogs(Array.isArray(activityLogs) ? activityLogs : []);
-  }, [activityLogs]);
-
+  const totalPages = Math.max(1, Math.ceil(activityLogs.length / logsPerPage));
   const indexOfLastLog = currentPage * logsPerPage;
   const indexOfFirstLog = indexOfLastLog - logsPerPage;
-  const currentLogs = logs.slice(indexOfFirstLog, indexOfLastLog);
-  const totalPages = Math.ceil(logs.length / logsPerPage);
+  const currentLogs = useMemo(
+    () => activityLogs.slice(indexOfFirstLog, indexOfLastLog),
+    [activityLogs, indexOfFirstLog, indexOfLastLog]
+  );
+
+  useEffect(() => {
+    setCurrentPage((page) => Math.min(page, totalPages));
+  }, [totalPages]);
 
   return (
     <section className="enterprise-page">
@@ -47,7 +46,7 @@ function Activitylogpage() {
           <h1>Activity Logs</h1>
           <span>Audit trail for users, stock actions, approvals and operational changes.</span>
         </div>
-        <span className="status-pill">{logs.length} events</span>
+        <span className="status-pill">{activityLogs.length} events</span>
       </div>
 
       <div className="data-panel">
@@ -58,8 +57,9 @@ function Activitylogpage() {
                 <th>Name</th>
                 <th>Email</th>
                 <th>Action</th>
-                <th>Affected Part</th>
+                <th>Module</th>
                 <th>Description</th>
+                <th>Session</th>
                 <th>Time</th>
                 <th>IP Address</th>
               </tr>
@@ -72,8 +72,9 @@ function Activitylogpage() {
                     <td>{log.userId?.name || "System"}</td>
                     <td>{log.userId?.email || "-"}</td>
                     <td>{log.action || "-"}</td>
-                    <td>{log.entity || "-"}</td>
+                    <td className="capitalize">{(log.module || log.entity || "-").replaceAll("_", " ")}</td>
                     <td>{log.description || "-"}</td>
+                    <td>{log.duration ? `${Number(log.duration).toFixed(2)} min` : "-"}</td>
                     <td>
                       <FormattedTime timestamp={log.createdAt} />
                     </td>
@@ -82,7 +83,7 @@ function Activitylogpage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="8" className="text-center py-4">
+                  <td colSpan="9" className="text-center py-4">
                     <p>No activity logs available</p>
                   </td>
                 </tr>

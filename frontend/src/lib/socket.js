@@ -1,8 +1,7 @@
 import { io } from "socket.io-client";
+import backendURL from "./backendUrl";
 
-const socketURL = process.env.REACT_APP_SOCKET_URL || process.env.REACT_APP_BACKEND_URL || "http://localhost:3003";
-
-const socket = io(socketURL, {
+const socket = io(backendURL, {
   withCredentials: true,
   transports: ["websocket", "polling"],
 });
