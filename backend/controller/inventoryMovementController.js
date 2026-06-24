@@ -1,6 +1,7 @@
 const InventoryMovement = require("../models/InventoryMovementmodel");
 const DepartmentStock = require("../models/DepartmentStockmodel");
 const ApprovalRequest = require("../models/ApprovalRequestmodel");
+const logActivity = require("../libs/logger");
 const {
   createInventoryMovement,
   syncAllInventory,
@@ -15,6 +16,7 @@ exports.createMovement = async (req, res) => {
     const movement = await createInventoryMovement({
       ...req.body,
       requestedBy: req.user?._id || req.body.requestedBy,
+      ipAddress: req.ip,
     });
     res.status(201).json({ success: true, movement });
   } catch (error) {
@@ -74,6 +76,16 @@ exports.createDepartmentRequest = async (req, res) => {
       remarks: remarks || "",
     });
 
+    await logActivity({
+      action: "REQUEST_CREATE",
+      description: `Department request ${approval.requestCode} was created.`,
+      module: "requests",
+      entity: "approval",
+      entityId: approval._id,
+      userId: req.user._id,
+      ipAddress: req.ip,
+    });
+
     req.app.get("io")?.emit("approval:pending", { approvalId: approval._id, requestCode: approval.requestCode });
     res.status(201).json({ success: true, approval });
   } catch (error) {
@@ -112,6 +124,15 @@ exports.getPendingApprovals = async (_req, res) => {
 exports.approveRequest = async (req, res) => {
   try {
     const result = await approveMovement(req.params.id, req.user?._id);
+    await logActivity({
+      action: "REQUEST_APPROVE",
+      description: `Request ${result.approval.requestCode} was approved.`,
+      module: "requests",
+      entity: "approval",
+      entityId: result.approval._id,
+      userId: req.user._id,
+      ipAddress: req.ip,
+    });
     req.app.get("io")?.emit("approval:processed", { approvalId: req.params.id, status: "approved" });
     res.status(200).json({ success: true, ...result });
   } catch (error) {
@@ -122,6 +143,15 @@ exports.approveRequest = async (req, res) => {
 exports.rejectRequest = async (req, res) => {
   try {
     const approval = await rejectMovement(req.params.id, req.user?._id, req.body.rejectionReason);
+    await logActivity({
+      action: "REQUEST_REJECT",
+      description: `Request ${approval.requestCode} was rejected.`,
+      module: "requests",
+      entity: "approval",
+      entityId: approval._id,
+      userId: req.user._id,
+      ipAddress: req.ip,
+    });
     req.app.get("io")?.emit("approval:processed", { approvalId: req.params.id, status: "rejected" });
     res.status(200).json({ success: true, approval });
   } catch (error) {

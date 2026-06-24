@@ -7,7 +7,7 @@ const cookieParser = require("cookie-parser");
 const authrouter = require('./Routers/authRouther');
 const productrouter = require('./Routers/ProductRouter');
 const orderrouter = require('./Routers/orderRouter');
-const categoryrouter = require("./Routers/categoryRouter")
+const categoryrouter = require("./Routers/categoryRouter");
 const notificationrouter = require("./Routers/notificationRouters");
 const activityrouter = require("./Routers/activityRouter");
 const inventoryrouter = require('./Routers/inventoryRouter');
@@ -18,14 +18,22 @@ const departmentRouter = require("./Routers/departmentRouter");
 const sparePartRouter = require("./Routers/sparePartRouter");
 const inventoryMovementRouter = require("./Routers/inventoryMovementRouter");
 const analyticsRouter = require("./Routers/analyticsRouter");
-
+const logActivity = require("./libs/logger");
+const { sweepInactiveUsers } = require("./services/presenceService");
 
 require("dotenv").config();
 const PORT = process.env.PORT || 3003;
-const allowedOrigins = (process.env.CLIENT_URL || "http://localhost:3000,https://hero-track-pro.vercel.app")
+const defaultAllowedOrigins = [
+  "http://localhost:3000",
+  "https://hero-track-pro.vercel.app",
+];
+const allowedOrigins = [
+  ...defaultAllowedOrigins,
+  ...(process.env.CLIENT_URL || "")
   .split(",")
   .map((origin) => origin.trim())
-  .filter(Boolean);
+  .filter(Boolean),
+].filter((origin, index, origins) => origins.indexOf(origin) === index);
 
 const app = express();
 const server = http.createServer(app);
@@ -44,19 +52,24 @@ app.use(cors({
   credentials: true,
 }));
 
-
-app.use(express.json({limit: "10mb"}));
+app.use(express.json({ limit: "10mb" }));
 app.set("io", io);
 app.use(cookieParser());
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok", service: "hero-track-pro-api" });
 });
+logActivity.setSocketServer(io);
+
+const presenceSweep = setInterval(() => {
+  sweepInactiveUsers(io).catch((error) => console.error("Presence sweep failed:", error.message));
+}, 60 * 1000);
+presenceSweep.unref();
 app.use('/api/auth', authrouter);
 app.use('/api/product', productrouter);
 app.use('/api/order', orderrouter);
 app.use('/api/category', categoryrouter);
 app.use('/api/notification', notificationrouter);
-app.use('/api/activitylogs', activityrouter(app)); 
+app.use('/api/activitylogs', activityrouter);
 app.use('/api/inventory', inventoryrouter);
 app.use('/api/sales', salesrouter);
 app.use('/api/supplier', supplierrouter);
@@ -66,14 +79,9 @@ app.use("/api/spare-parts", sparePartRouter);
 app.use("/api/inventory-movements", inventoryMovementRouter);
 app.use("/api/analytics", analyticsRouter);
 
-
-
-
 server.listen(PORT, () => {
   MongoDBconfig();
   console.info(`The server is running at port ${PORT}`);
 });
 
-
-
-module.exports = { io, server};
+module.exports = { io, server };

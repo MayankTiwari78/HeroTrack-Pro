@@ -110,6 +110,7 @@ const createInventoryMovement = async ({
   remarks,
   referenceNumber,
   forcePendingApproval = false,
+  ipAddress,
 }) => {
   const needsApproval = forcePendingApproval || Number(quantity) > APPROVAL_QUANTITY_LIMIT;
   const movement = await InventoryMovement.create({
@@ -146,11 +147,13 @@ const createInventoryMovement = async ({
   }
 
   await logActivity({
-    action: needsApproval ? "Inventory Movement Requested" : "Inventory Movement Completed",
+    action: "STOCK_MOVEMENT",
     description: `${movementType} movement for quantity ${quantity}`,
+    module: "inventory",
     entity: "movement",
     entityId: movement._id,
     userId: requestedBy,
+    ipAddress,
   });
 
   return movement;

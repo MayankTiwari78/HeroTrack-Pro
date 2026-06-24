@@ -1,51 +1,49 @@
+const mongoose = require("mongoose");
 
-const mongoose=require('mongoose')
-
-
-
-
-const UserSchema= new mongoose.Schema({
-
-    name:{
-        type:String,
-        require:true
+const UserSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: true,
+      trim: true,
     },
-    email:{
-        type:String,
-        require:true,
-        unique:true
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
     },
-    password:{
-        type:String,
-        require:true
-    }, 
-    role:{
-        type:String,
-        enum:['admin','manager','staff'],
-        default:'staff',
-    
+    password: {
+      type: String,
+      required: true,
     },
-    staffId:{ type:String, unique:true, sparse:true },
-    department:{ type:mongoose.Schema.Types.ObjectId, ref:"Department" },
-    designation:{ type:String },
-    phone:{ type:String },
-    isActive:{ type:Boolean, default:true },
-    lastLogin:{ type:Date },
-    ProfilePic:{
-        type:String
-   
-
+    role: {
+      type: String,
+      enum: ["admin", "manager", "staff"],
+      default: "staff",
     },
-    createdAt:{
-        type:Date,
-        default:Date.now
+    staffId: { type: String, unique: true, sparse: true },
+    department: { type: mongoose.Schema.Types.ObjectId, ref: "Department" },
+    designation: { type: String, trim: true },
+    phone: { type: String, trim: true },
+    isActive: { type: Boolean, default: true },
+    lastLogin: { type: Date },
+    lastSeen: { type: Date },
+    isOnline: { type: Boolean, default: false },
+    totalActiveTime: { type: Number, default: 0, min: 0 },
+    currentSessionStart: { type: Date, default: null },
+    termsAccepted: {
+      type: Boolean,
+      required: true,
+      default: false,
+    },
+    ProfilePic: {
+      type: String,
+      default: "",
+    },
+  },
+  { timestamps: true }
+);
 
-    },},
-    { timestamps: true }
-
-
-)
-
-const User=mongoose.model("User",UserSchema)
-
-module.exports=User
+module.exports = mongoose.model("User", UserSchema);

@@ -1,10 +1,11 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/Usermodel");
+const { ONLINE_WINDOW_MS, touchUserPresence } = require("../services/presenceService");
 require("dotenv").config();
 
 const activeRoles = ["admin", "manager", "staff"];
 
-module.exports.authmiddleware = async (req, res, next) => {
+const authmiddleware = async (req, res, next) => {
   try {
     const cookieToken = req.cookies?.Inventorymanagmentsystem;
 
@@ -23,7 +24,7 @@ module.exports.authmiddleware = async (req, res, next) => {
 
     const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
 
-    if (!decodedToken || !decodedToken.userId) {
+    if (!decodedToken?.userId) {
       return res.status(401).json({
         message: "Unauthorized: Invalid token.",
       });
@@ -43,8 +44,31 @@ module.exports.authmiddleware = async (req, res, next) => {
       });
     }
 
-    req.user = user;
-    next();
+    if (user.isActive === false) {
+      return res.status(403).json({
+        message: "Account is inactive. Contact administrator."
+      });
+    }
+
+    const wasActive =
+      user.isOnline &&
+      user.lastSeen &&
+      Date.now() - new Date(user.lastSeen).getTime() <= ONLINE_WINDOW_MS;
+
+    const activeUser = await touchUserPresence(user);
+
+    req.user = activeUser;
+
+    if (!wasActive) {
+      req.app
+        .get("io")
+        ?.emit("presence:update", {
+          userId: activeUser._id,
+          status: "online",
+        });
+    }
+
+    return next();
   } catch (error) {
     console.error("Token verification error:", error.message);
     return res.status(401).json({
@@ -53,8 +77,10 @@ module.exports.authmiddleware = async (req, res, next) => {
   }
 };
 
-module.exports.authorizeRoles = (...roles) => {
-  const allowedRoles = roles.filter((role) => activeRoles.includes(role));
+const authorizeRoles = (...roles) => {
+  const allowedRoles = roles.filter((role) =>
+    activeRoles.includes(role)
+  );
 
   return (req, res, next) => {
     if (!req.user) {
@@ -69,50 +95,13 @@ module.exports.authorizeRoles = (...roles) => {
       });
     }
 
-    next();
+    return next();
   };
 };
 
-module.exports.adminmiddleware = async (req, res, next) => {
-  try {
-    const user = req.user;
-
-    if (!user) {
-      return res.status(403).json({ message: "Access denied." });
-    }
-
-    if (user.role !== "admin") {
-      return res.status(403).json({
-        message: "Access denied. admin role required.",
-      });
-    }
-
-    next();
-  } catch (error) {
-    return res.status(401).json({
-      message: "Unauthorized: Invalid or expired token.",
-    });
-  }
-};
-
-module.exports.managermiddleware = async (req, res, next) => {
-  try {
-    const user = req.user;
-
-    if (!user) {
-      return res.status(403).json({ message: "Access denied." });
-    }
-
-    if (user.role !== "manager") {
-      return res.status(403).json({
-        message: "Access denied. manager role required.",
-      });
-    }
-
-    next();
-  } catch (error) {
-    return res.status(401).json({
-      message: "Unauthorized: Invalid or expired token.",
-    });
-  }
+module.exports = {
+  authmiddleware,
+  authorizeRoles,
+  adminmiddleware: authorizeRoles("admin"),
+  managermiddleware: authorizeRoles("manager"),
 };

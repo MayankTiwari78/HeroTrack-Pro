@@ -1,5 +1,6 @@
 const Product = require("../models/Productmodel");
 const { syncInventory } = require("../services/inventoryService");
+const logActivity = require("../libs/logger");
 
 const normalizePayload = (body) => ({
   ...body,
@@ -17,6 +18,15 @@ exports.createSparePart = async (req, res) => {
   try {
     const part = await Product.create(normalizePayload(req.body));
     await syncInventory(part._id);
+    await logActivity({
+      action: "SPARE_PART_CREATE",
+      description: `Spare part ${part.partName || part.name} was created.`,
+      module: "spare_parts",
+      entity: "spare_part",
+      entityId: part._id,
+      userId: req.user._id,
+      ipAddress: req.ip,
+    });
     res.status(201).json({ success: true, part });
   } catch (error) {
     res.status(500).json({ success: false, message: "Error creating spare part", error: error.message });
@@ -61,6 +71,15 @@ exports.updateSparePart = async (req, res) => {
     const part = await Product.findByIdAndUpdate(req.params.id, normalizePayload(req.body), { new: true });
     if (!part) return res.status(404).json({ success: false, message: "Spare part not found" });
     await syncInventory(part._id);
+    await logActivity({
+      action: "SPARE_PART_UPDATE",
+      description: `Spare part ${part.partName || part.name} was updated.`,
+      module: "spare_parts",
+      entity: "spare_part",
+      entityId: part._id,
+      userId: req.user._id,
+      ipAddress: req.ip,
+    });
     res.status(200).json({ success: true, part });
   } catch (error) {
     res.status(500).json({ success: false, message: "Error updating spare part", error: error.message });
@@ -71,6 +90,15 @@ exports.deleteSparePart = async (req, res) => {
   try {
     const part = await Product.findByIdAndUpdate(req.params.id, { status: "inactive" }, { new: true });
     if (!part) return res.status(404).json({ success: false, message: "Spare part not found" });
+    await logActivity({
+      action: "SPARE_PART_DELETE",
+      description: `Spare part ${part.partName || part.name} was deactivated.`,
+      module: "spare_parts",
+      entity: "spare_part",
+      entityId: part._id,
+      userId: req.user._id,
+      ipAddress: req.ip,
+    });
     res.status(200).json({ success: true, message: "Spare part deactivated", part });
   } catch (error) {
     res.status(500).json({ success: false, message: "Error deleting spare part", error: error.message });

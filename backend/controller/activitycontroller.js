@@ -1,39 +1,93 @@
 const ActivityLog = require("../models/ActivityLogmodel");
+const logActivity = require("../libs/logger");
 
-
-module.exports.createActivityLog = async (req, res) => {
+const createActivityLog = async (req, res) => {
   try {
-    const { action, description, entity, entityId, userId } = req.body;
-
-    if (!action || !description || !entity || !entityId) {
-      return res.status(400).json({ success: false, message: "Please provide all required details." });
-    }
-
-    const newActivity = new ActivityLog({
+    const { action, description, module, entity, entityId, status } = req.body;
+    const activity = await logActivity({
       action,
       description,
-      userId,
+      module: module || entity || "system",
       entity,
       entityId,
-      ipAddress: req.ip, 
+      status,
+      userId: req.user._id,
+      ipAddress: req.ip,
     });
 
-    await newActivity.save();
+    if (!activity) {
+      return res.status(400).json({
+        success: false,
+        message: "Action and description are required.",
+      });
+    }
 
-    res.status(201).json({ success: true, message: "Activity log created successfully.", activity: newActivity });
+    return res.status(201).json(activity);
   } catch (error) {
-    res.status(500).json({ success: false, message: "Error creating activity log.", error });
+    return res.status(500).json({ success: false, message: "Failed to create log", error: error.message });
   }
 };
 
-
-module.exports.getAllActivityLogs = async (req, res) => {
+const getAllActivityLogs = async (req, res) => {
   try {
-    const logs = await ActivityLog.find().sort({ createdAt: -1 });
+    const requestedLimit = Number.parseInt(req.query.limit, 10);
+    const limit = Number.isFinite(requestedLimit)
+      ? Math.min(Math.max(requestedLimit, 1), 1000)
+      : 500;
+    const logs = await ActivityLog.find()
+      .populate("userId", "name email role ProfilePic")
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean();
 
-    res.status(200).json({ success: true, logs });
+    return res.status(200).json(logs);
   } catch (error) {
-    res.status(500).json({ success: false, message: "Error fetching activity logs.", error });
+    return res.status(500).json({ message: "Failed to fetch logs", error: error.message });
   }
 };
 
+const getRecentActivityLogs = async (_req, res) => {
+  try {
+    const logs = await ActivityLog.find()
+      .populate("userId", "name email role")
+      .sort({ createdAt: -1 })
+      .limit(3)
+      .lean();
+
+    return res.status(200).json(logs);
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to fetch logs", error: error.message });
+  }
+};
+
+const getUserActivityLogs = async (req, res) => {
+  try {
+    const logs = await ActivityLog.find({ userId: req.params.userid })
+      .populate("userId", "name email role")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return res.status(200).json(logs);
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to fetch user logs", error: error.message });
+  }
+};
+
+const deleteActivityLog = async (req, res) => {
+  try {
+    const deletedLog = await ActivityLog.findByIdAndDelete(req.body.id);
+    if (!deletedLog) return res.status(404).json({ message: "Log not found" });
+
+    return res.status(200).json({ success: true, message: "Log deleted successfully" });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to delete log", error: error.message });
+  }
+};
+
+module.exports = {
+  createActivityLog,
+  deleteActivityLog,
+  getAllActivityLogs,
+  getRecentActivityLogs,
+  getUserActivityLogs,
+};

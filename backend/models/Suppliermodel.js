@@ -25,15 +25,6 @@ const SupplierSchema= new mongoose.Schema({
         ref:"Product"
 
     },
-    createdAt:{
-        type:Date,
-        default:Date.now
-
-    },
-
-
-
-
 },    { timestamps: true }
 
 

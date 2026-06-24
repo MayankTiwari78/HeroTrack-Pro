@@ -1,48 +1,53 @@
 const mongoose = require("mongoose");
-const logger=require('../libs/logger')
-
 
 const ActivityLogSchema = new mongoose.Schema(
   {
     action: {
       type: String,
       required: true,
-    
+      trim: true,
     },
     description: {
       type: String,
       required: true,
+      trim: true,
     },
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: false, 
+    },
+    module: {
+      type: String,
+      required: true,
+      default: "system",
+      trim: true,
+      lowercase: true,
     },
     entity: {
       type: String,
-      required: true,
-      enum: ["product", "spare_part", "department", "movement", "approval", "category", "order", "user", "system"],
+      trim: true,
     },
     entityId: {
       type: mongoose.Schema.Types.ObjectId,
-      required: false, 
     },
     ipAddress: {
-        type: String,
-        required: false,
-      },
-    
+      type: String,
+      trim: true,
+    },
+    loginTime: { type: Date },
+    logoutTime: { type: Date },
+    duration: { type: Number, min: 0, default: 0 },
+    status: {
+      type: String,
+      enum: ["success", "failure", "pending"],
+      default: "success",
+    },
+    dedupeKey: { type: String, unique: true, sparse: true },
   },
   { timestamps: true }
-
 );
 
+ActivityLogSchema.index({ createdAt: -1 });
+ActivityLogSchema.index({ userId: 1, createdAt: -1 });
 
-
-
-
-
-
-const ActivityLog = mongoose.model("ActivityLog", ActivityLogSchema);
-
-module.exports = ActivityLog;
+module.exports = mongoose.model("ActivityLog", ActivityLogSchema);

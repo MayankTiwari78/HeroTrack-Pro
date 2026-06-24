@@ -165,6 +165,7 @@ const run = async () => {
         designation: role === "admin" ? "System Administrator" : role.replace("_", " "),
         phone: `99${String(80000000 + index * 2027).slice(0, 8)}`,
         isActive: true,
+        termsAccepted: true,
       };
     })
   );
