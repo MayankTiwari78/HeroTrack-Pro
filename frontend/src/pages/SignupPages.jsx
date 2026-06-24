@@ -1,4 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
+import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { signup } from "../features/authSlice";
 import { useForm } from "react-hook-form";
@@ -11,41 +12,51 @@ const emailPattern = /^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/;
 const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
 const passwordValidationMessage =
   "Password must be at least 8 characters and include an uppercase letter, a lowercase letter, a number, and a special character.";
+const dashboardByRole = {
+  admin: "/AdminDashboard",
+  manager: "/ManagerDashboard",
+  staff: "/StaffDashboard",
+};
+const signupSchema = yup.object({
+  name: yup.string().trim().required("Name is required"),
+  email: yup
+    .string()
+    .trim()
+    .required("Please enter a valid email address.")
+    .matches(emailPattern, "Please enter a valid email address."),
+  password: yup
+    .string()
+    .required("Password is required")
+    .matches(passwordPattern, passwordValidationMessage),
+  role: yup
+    .string()
+    .oneOf(["admin", "manager", "staff"], "Select a valid role.")
+    .required("Role is required"),
+});
 
 function SignupPage() {
   const { isUserSignup } = useSelector((state) => state.auth);
   const dispatch = useDispatch();
   const navigator = useNavigate();
-  const dashboardByRole = {
-    admin: "/AdminDashboard",
-    manager: "/ManagerDashboard",
-    staff: "/StaffDashboard",
-  };
-
-  const schema = yup.object().shape({
-    name: yup.string().required("Name is required"),
-    email: yup
-      .string()
-      .trim()
-      .required("Please enter a valid email address.")
-      .matches(emailPattern, "Please enter a valid email address."),
-    password: yup
-      .string()
-      .required("Password is required")
-      .matches(passwordPattern, passwordValidationMessage),
-    role: yup.string().required("Role is required"),
-  });
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [termsError, setTermsError] = useState("");
 
   const {
     register,
     handleSubmit,
     formState: { errors },
   } = useForm({
-    resolver: yupResolver(schema),
+    resolver: yupResolver(signupSchema),
+    defaultValues: { role: "staff", termsAccepted: false },
   });
 
   const onSubmit = (data) => {
-    dispatch(signup(data))
+    if (!termsAccepted) {
+      setTermsError("You must accept Terms & Conditions to continue.");
+      return;
+    }
+
+    dispatch(signup({ ...data, termsAccepted }))
       .unwrap()
       .then((result) => {
         toast.success("Account created successfully.");
@@ -121,16 +132,33 @@ function SignupPage() {
             </select>
             {errors.role && <p className="text-red-500">{errors.role.message}</p>}
 
-            <div className="flex items-center mb-6">
-              <input type="checkbox" id="2fa" className="auth-checkbox mr-2" />
-              <label htmlFor="2fa" className="text-gray-600 text-sm">Agree to terms and conditions</label>
+            <div className="mb-6">
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="termsAccepted"
+                  checked={termsAccepted}
+                  onChange={(event) => {
+                    setTermsAccepted(event.target.checked);
+                    setTermsError("");
+                  }}
+                  className="auth-checkbox mr-2"
+                  aria-invalid={Boolean(termsError)}
+                />
+                <label htmlFor="termsAccepted" className="text-gray-600 text-sm">
+                  Agree to Terms &amp; Conditions
+                </label>
+              </div>
+              {termsError && (
+                <p className="text-red-500 text-sm mt-1" role="alert">{termsError}</p>
+              )}
             </div>
 
             <button
               type="submit"
-              disabled={isUserSignup}
+              disabled={isUserSignup || !termsAccepted}
               aria-busy={isUserSignup}
-              className="auth-primary-button w-full rounded-md bg-[#d71920] p-3 font-black text-white transition duration-300 hover:bg-[#b9141a] disabled:cursor-not-allowed disabled:opacity-70"
+              className={`auth-primary-button w-full rounded-md bg-[#d71920] p-3 font-black text-white transition duration-300 hover:bg-[#b9141a] disabled:cursor-not-allowed disabled:opacity-50 ${isUserSignup || !termsAccepted ? "opacity-50 cursor-not-allowed" : ""}`}
             >
               {isUserSignup ? "Creating account..." : "Sign Up"}
             </button>

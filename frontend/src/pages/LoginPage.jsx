@@ -1,4 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { useDispatch } from "react-redux";
@@ -9,6 +10,8 @@ import { login } from '../features/authSlice';
 function LoginPage() {
   const dispatch = useDispatch();
   const navigator = useNavigate();
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [termsError, setTermsError] = useState("");
   const dashboardByRole = {
     admin: "/AdminDashboard",
     manager: "/ManagerDashboard",
@@ -28,6 +31,11 @@ function LoginPage() {
   });
 
   const onSubmit = (data) => {
+    if (!termsAccepted) {
+      setTermsError("You must accept Terms & Conditions to continue.");
+      return;
+    }
+
     dispatch(login(data))
     .unwrap()
     .then((result)=>{
@@ -104,14 +112,29 @@ function LoginPage() {
               {errors.password && <p className="text-red-500">{errors.password.message}</p>}
             </div>
 
-            <div className="flex items-center mb-6">
-              <input type="checkbox" id="2fa" className="auth-checkbox mr-2" />
-              <label htmlFor="2fa" className="text-gray-600 text-sm">Agree on terms and conditions</label>
+            <div className="mb-6">
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="termsAccepted"
+                  checked={termsAccepted}
+                  onChange={(event) => {
+                    setTermsAccepted(event.target.checked);
+                    setTermsError("");
+                  }}
+                  className="auth-checkbox mr-2"
+                />
+                <label htmlFor="termsAccepted" className="text-gray-600 text-sm">Agree on terms and conditions</label>
+              </div>
+              {termsError && (
+                <p className="text-red-500 text-sm mt-1">{termsError}</p>
+              )}
             </div>
 
             <button
               type="submit"
-              className="auth-primary-button w-full rounded-md bg-[#d71920] p-3 font-black text-white transition duration-300 hover:bg-[#b9141a]"
+              disabled={!termsAccepted}
+              className={`auth-primary-button w-full rounded-md bg-[#d71920] p-3 font-black text-white transition duration-300 hover:bg-[#b9141a] ${!termsAccepted ? "opacity-50 cursor-not-allowed" : ""}`}
             >
               Sign in
             </button>
