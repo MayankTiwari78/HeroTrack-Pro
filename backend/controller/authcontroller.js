@@ -4,6 +4,8 @@ const generateToken = require("../libs/Tokengenerator");
 const Cloundinary = require("../libs/Cloundinary");
 const logActivity = require("../libs/logger");
 const ActivityLog = require("../models/ActivityLogmodel");
+const otpService = require("../services/otpService");
+const smsService = require("../services/smsService");
 const {
   getPresenceStatus,
   minutesBetween,
@@ -14,6 +16,7 @@ const {
 const activeRoles = ["admin", "manager", "staff"];
 const emailPattern = /^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/;
 const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+const phonePattern = /^[0-9]{10}$/;
 
 const duplicateAccountResponse = {
   success: false,
@@ -31,9 +34,48 @@ const serializeAuthUser = (user, token) => ({
   name: user.name,
   email: user.email,
   role: user.role,
+  employeeId: user.employeeId,
+  phone: user.phone,
+  phoneVerified: user.phoneVerified,
   ProfilePic: user.ProfilePic,
   token,
 });
+
+const sendOtp = async (req, res) => {
+  const phone = typeof req.body.phone === "string" ? req.body.phone.trim() : "";
+
+  if (!phonePattern.test(phone)) {
+    return res.status(400).json({
+      success: false,
+      message: "Please enter a valid 10 digit mobile number.",
+    });
+  }
+
+  try {
+    const otp = otpService.generateOTP();
+    await smsService.sendOTP(phone, otp);
+    otpService.saveOTP(phone, otp);
+
+    const response = { success: true, message: "OTP sent successfully." };
+    if (process.env.NODE_ENV !== "production") response.otp = otp;
+    return res.status(200).json(response);
+  } catch (error) {
+    otpService.invalidateOTP(phone);
+    console.error("Unable to send OTP:", error.message);
+    return res.status(503).json({ success: false, message: "Unable to send OTP." });
+  }
+};
+
+const verifyOtp = (req, res) => {
+  const phone = typeof req.body.phone === "string" ? req.body.phone.trim() : "";
+  const otp = typeof req.body.otp === "string" ? req.body.otp.trim() : String(req.body.otp || "");
+
+  if (!phonePattern.test(phone) || !/^[0-9]{6}$/.test(otp) || !otpService.verifyOTP(phone, otp)) {
+    return res.status(400).json({ success: false, message: "Invalid OTP." });
+  }
+
+  return res.status(200).json({ success: true, verified: true });
+};
 
 const getUsersByRole = async (role, emptyMessage, res) => {
   const users = await User.find({ role, isActive: { $ne: false } })
@@ -55,14 +97,17 @@ const signup = async (req, res) => {
       email,
       password,
       role,
+      employeeId,
       staffId,
       department,
       designation,
       phone,
+      otpVerified,
       termsAccepted,
     } = req.body;
     const trimmedName = typeof name === "string" ? name.trim() : "";
     const trimmedEmail = typeof email === "string" ? email.trim() : "";
+    const trimmedPhone = typeof phone === "string" ? phone.trim() : "";
 
     if (!trimmedName) {
       return res.status(400).json({ success: false, message: "Name is required." });
@@ -102,6 +147,33 @@ const signup = async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid role. Use admin, manager, or staff." });
     }
 
+    const trimmedEmployeeId = typeof employeeId === "string" ? employeeId.trim() : "";
+    if (["staff", "manager"].includes(requestedRole)) {
+      if (!trimmedEmployeeId) {
+        return res.status(400).json({ success: false, message: "Employee ID is required." });
+      }
+      if (trimmedEmployeeId.length < 3 || trimmedEmployeeId.length > 20) {
+        return res.status(400).json({
+          success: false,
+          message: "Employee ID must be between 3 and 20 characters.",
+        });
+      }
+    }
+
+    if (!phonePattern.test(trimmedPhone)) {
+      return res.status(400).json({
+        success: false,
+        message: "Please enter a valid 10 digit mobile number.",
+      });
+    }
+
+    if (otpVerified !== true || !otpService.isOTPVerified(trimmedPhone)) {
+      return res.status(400).json({
+        success: false,
+        message: "Mobile number must be verified before signup.",
+      });
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
     const now = new Date();
     const newUser = new User({
@@ -110,10 +182,12 @@ const signup = async (req, res) => {
       password: hashedPassword,
       ProfilePic: "",
       role: requestedRole,
+      employeeId: requestedRole === "admin" ? undefined : trimmedEmployeeId,
       staffId: cleanOptionalString(staffId),
       department: department || undefined,
       designation: cleanOptionalString(designation),
-      phone: cleanOptionalString(phone),
+      phone: trimmedPhone,
+      phoneVerified: true,
       termsAccepted: true,
       lastLogin: now,
       lastSeen: now,
@@ -122,6 +196,7 @@ const signup = async (req, res) => {
     });
 
     const savedUser = await newUser.save();
+    otpService.consumeOTPVerification(trimmedPhone);
     const token = await generateToken(savedUser, res);
 
     await logActivity({
@@ -395,7 +470,7 @@ const getUserActivityStatus = async (req, res) => {
     await sweepInactiveUsers(req.app.get("io"), now);
 
     const users = await User.find({ isActive: { $ne: false } })
-      .select("name email role ProfilePic lastLogin lastSeen isOnline totalActiveTime currentSessionStart")
+      .select("name email role employeeId ProfilePic lastLogin lastSeen isOnline totalActiveTime currentSessionStart")
       .sort({ name: 1 })
       .lean();
 
@@ -472,7 +547,9 @@ module.exports = {
   logout,
   manageruser,
   removeuser,
+  sendOtp,
   signup,
   staffuser,
   updateProfile,
+  verifyOtp,
 };

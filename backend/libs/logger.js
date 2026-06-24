@@ -45,18 +45,18 @@ const logActivity = async ({
     };
 
     const existingActivity = await ActivityLog.findOne({ dedupeKey: activityDedupeKey })
-      .populate("userId", "name email role ProfilePic");
+      .populate("userId", "name email role employeeId ProfilePic");
     if (existingActivity) return existingActivity;
 
     const createdActivity = await ActivityLog.create(payload);
     const activity = await ActivityLog.findById(createdActivity._id)
-      .populate("userId", "name email role ProfilePic");
+      .populate("userId", "name email role employeeId ProfilePic");
 
     socketServer?.emit("newActivityLog", activity);
     return activity;
   } catch (error) {
     if (error?.code === 11000 && activityDedupeKey) {
-      return ActivityLog.findOne({ dedupeKey: activityDedupeKey }).populate("userId", "name email role ProfilePic");
+      return ActivityLog.findOne({ dedupeKey: activityDedupeKey }).populate("userId", "name email role employeeId ProfilePic");
     }
     if (error?.code !== 11000) console.error("Error logging activity:", error.message);
     return null;

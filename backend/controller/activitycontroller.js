@@ -35,7 +35,7 @@ const getAllActivityLogs = async (req, res) => {
       ? Math.min(Math.max(requestedLimit, 1), 1000)
       : 500;
     const logs = await ActivityLog.find()
-      .populate("userId", "name email role ProfilePic")
+      .populate("userId", "name email role employeeId ProfilePic")
       .sort({ createdAt: -1 })
       .limit(limit)
       .lean();
@@ -49,7 +49,7 @@ const getAllActivityLogs = async (req, res) => {
 const getRecentActivityLogs = async (_req, res) => {
   try {
     const logs = await ActivityLog.find()
-      .populate("userId", "name email role")
+      .populate("userId", "name email role employeeId")
       .sort({ createdAt: -1 })
       .limit(3)
       .lean();
@@ -63,7 +63,7 @@ const getRecentActivityLogs = async (_req, res) => {
 const getUserActivityLogs = async (req, res) => {
   try {
     const logs = await ActivityLog.find({ userId: req.params.userid })
-      .populate("userId", "name email role")
+      .populate("userId", "name email role employeeId")
       .sort({ createdAt: -1 })
       .lean();
 

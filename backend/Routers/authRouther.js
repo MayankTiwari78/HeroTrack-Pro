@@ -10,10 +10,14 @@ const {
   adminuser,
   removeuser,
   getUserActivityStatus,
+  sendOtp,
+  verifyOtp,
 } = require('../controller/authcontroller');
 const { authmiddleware, authorizeRoles } = require('../middleware/Authmiddleware');
 
 router.post("/signup", signup);
+router.post("/send-otp", sendOtp);
+router.post("/verify-otp", verifyOtp);
 router.post("/login", login);
 router.delete("/removeuser/:UserId", authmiddleware, authorizeRoles("admin"), removeuser);
 router.get("/staffuser", authmiddleware, authorizeRoles("admin"), staffuser);

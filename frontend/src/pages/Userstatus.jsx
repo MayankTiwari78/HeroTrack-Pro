@@ -14,7 +14,7 @@ import {
   Tooltip,
 } from "chart.js";
 import { useDispatch, useSelector } from "react-redux";
-import { FiClock, FiRefreshCw, FiSearch, FiTrash2, FiUsers, FiWifi, FiWifiOff } from "react-icons/fi";
+import { FiClock, FiHash, FiRefreshCw, FiSearch, FiTrash2, FiUsers, FiWifi, FiWifiOff } from "react-icons/fi";
 import toast from "react-hot-toast";
 import { formatDistanceToNow } from "date-fns";
 import { getUserActivityStatus, removeusers } from "../features/authSlice";
@@ -47,6 +47,14 @@ const defaultSummary = {
   roles: { admin: 0, manager: 0, staff: 0 },
 };
 const filterOptions = ["all", "online", "idle", "offline", "admin", "manager", "staff"];
+
+const normalizeText = (value) => String(value || "").trim().toLowerCase();
+
+const formatEmployeeId = (user) => {
+  const employeeId = user?.employeeId === undefined || user?.employeeId === null ? "" : String(user.employeeId).trim();
+  if (employeeId) return employeeId;
+  return normalizeText(user?.role) === "admin" ? "ADMIN" : "-";
+};
 
 const formatRelative = (value) => {
   if (!value) return "Never";
@@ -86,6 +94,7 @@ function Userstatus() {
   const isFetchingUserActivity = useSelector((state) => state.auth.isFetchingUserActivity);
   const authUserId = useSelector((state) => state.auth.Authuser?.id || state.auth.Authuser?._id);
   const [query, setQuery] = useState("");
+  const [employeeQuery, setEmployeeQuery] = useState("");
   const [filter, setFilter] = useState("all");
   const refreshInFlight = useRef(false);
 
@@ -114,13 +123,15 @@ function Userstatus() {
   const summary = userActivityStatus?.summary || defaultSummary;
 
   const filteredUsers = useMemo(() => {
-    const term = query.trim().toLowerCase();
+    const term = normalizeText(query);
+    const employeeTerm = normalizeText(employeeQuery);
     return users.filter((user) => {
-      const matchesSearch = !term || user.name?.toLowerCase().includes(term) || user.email?.toLowerCase().includes(term);
+      const matchesSearch = !term || normalizeText(user.name).includes(term) || normalizeText(user.email).includes(term);
+      const matchesEmployeeId = !employeeTerm || normalizeText(formatEmployeeId(user)).includes(employeeTerm);
       const matchesFilter = filter === "all" || user.status === filter || user.role === filter;
-      return matchesSearch && matchesFilter;
+      return matchesSearch && matchesEmployeeId && matchesFilter;
     });
-  }, [filter, query, users]);
+  }, [employeeQuery, filter, query, users]);
 
   const roleData = useMemo(() => ({
     labels: ["Admin", "Manager", "Staff"],
@@ -153,10 +164,10 @@ function Userstatus() {
   };
 
   const cards = useMemo(() => [
-    { label: "Total Users", value: summary.total, icon: FiUsers, color: "text-slate-700 bg-slate-100" },
-    { label: "Online Users", value: summary.online, icon: FiWifi, color: "text-emerald-700 bg-emerald-100" },
-    { label: "Idle Users", value: summary.idle, icon: FiClock, color: "text-amber-700 bg-amber-100" },
-    { label: "Offline Users", value: summary.offline, icon: FiWifiOff, color: "text-red-700 bg-red-100" },
+    { label: "Total Users", value: summary.total, icon: FiUsers, tone: "blue" },
+    { label: "Online Users", value: summary.online, icon: FiWifi, tone: "green" },
+    { label: "Idle Users", value: summary.idle, icon: FiClock, tone: "amber" },
+    { label: "Offline Users", value: summary.offline, icon: FiWifiOff, tone: "red" },
   ], [summary.idle, summary.offline, summary.online, summary.total]);
 
   return (
@@ -172,46 +183,55 @@ function Userstatus() {
         </button>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {cards.map(({ label, value, icon: Icon, color }) => (
-          <article key={label} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div><p className="text-sm font-semibold text-slate-500">{label}</p><strong className="mt-2 block text-3xl text-slate-900">{value}</strong></div>
-              <span className={`grid h-11 w-11 place-items-center rounded-lg ${color}`}><Icon size={20} /></span>
+      <div className="status-metric-grid">
+        {cards.map(({ label, value, icon: Icon, tone }) => (
+          <article key={label} className={`status-metric-card ${tone}`}>
+            <div>
+              <p>{label}</p>
+              <strong>{value}</strong>
             </div>
+            <span><Icon size={20} /></span>
           </article>
         ))}
       </div>
 
       <div className="grid gap-5 xl:grid-cols-3">
-        <article className="h-72 rounded-lg border border-slate-200 bg-white p-4 shadow-sm"><Bar data={roleData} options={roleChartOptions} /></article>
-        <article className="h-72 rounded-lg border border-slate-200 bg-white p-4 shadow-sm"><Doughnut data={presenceData} options={presenceChartOptions} /></article>
-        <article className="h-72 rounded-lg border border-slate-200 bg-white p-4 shadow-sm"><Line data={loginData} options={loginChartOptions} /></article>
+        <article className="status-chart-panel"><Bar data={roleData} options={roleChartOptions} /></article>
+        <article className="status-chart-panel"><Doughnut data={presenceData} options={presenceChartOptions} /></article>
+        <article className="status-chart-panel"><Line data={loginData} options={loginChartOptions} /></article>
       </div>
 
       <div className="data-panel overflow-hidden">
-        <div className="flex flex-col gap-4 border-b border-slate-200 p-4 lg:flex-row lg:items-center lg:justify-between">
-          <label className="relative block w-full lg:max-w-md">
-            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input className="enterprise-search w-full pl-10" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search by name or email" />
-          </label>
-          <div className="flex flex-wrap gap-2" aria-label="Filter users">
+        <div className="status-filter-panel">
+          <div className="status-search-row">
+            <label className="status-input-shell">
+              <FiSearch aria-hidden="true" />
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search by name or email" />
+            </label>
+            <label className="status-input-shell">
+              <FiHash aria-hidden="true" />
+              <input value={employeeQuery} onChange={(event) => setEmployeeQuery(event.target.value)} placeholder="Search by employee ID" />
+            </label>
+          </div>
+          <div className="activity-chip-group" aria-label="Filter users">
             {filterOptions.map((option) => (
-              <button key={option} onClick={() => setFilter(option)} className={`rounded-md px-3 py-2 text-xs font-bold capitalize ring-1 transition ${filter === option ? "bg-[#2455a6] text-white ring-[#2455a6]" : "bg-white text-slate-600 ring-slate-200 hover:bg-slate-50"}`}>{option}</button>
+              <button key={option} onClick={() => setFilter(option)} className={`activity-chip ${filter === option ? "active" : ""}`}>{option}</button>
             ))}
           </div>
         </div>
 
         <div className="overflow-x-auto">
           <table className="enterprise-table min-w-full">
-            <thead><tr><th>User</th><th>Role</th><th>Status</th><th>Last Seen</th><th>Last Login</th><th>Total Active Time</th><th aria-label="Actions" /></tr></thead>
+            <thead><tr><th>Employee ID</th><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Last Seen</th><th>Last Login</th><th>Total Active Time</th><th aria-label="Actions" /></tr></thead>
             <tbody>
               {filteredUsers.map((user) => {
                 const meta = statusMeta[user.status] || statusMeta.offline;
                 return (
                   <tr key={user._id}>
-                    <td><div className="font-bold text-slate-900">{user.name}</div><div className="text-sm text-slate-500">{user.email}</div></td>
-                    <td><span className="capitalize">{user.role}</span></td>
+                    <td><span className="employee-id-pill">{formatEmployeeId(user)}</span></td>
+                    <td><div className="font-bold text-[var(--text)]">{user.name || "Unknown User"}</div></td>
+                    <td><span className="text-sm text-[var(--muted)]">{user.email || "-"}</span></td>
+                    <td><span className="activity-role-pill">{user.role || "-"}</span></td>
                     <td><span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold ring-1 ${meta.badge}`}><span className={`h-2 w-2 rounded-full ${meta.dot}`} />{meta.label}</span></td>
                     <td title={formatDateTime(user.lastSeen)}>{formatRelative(user.lastSeen)}</td>
                     <td>{formatDateTime(user.lastLogin)}</td>
@@ -220,7 +240,7 @@ function Userstatus() {
                   </tr>
                 );
               })}
-              {!filteredUsers.length && <tr><td colSpan="7" className="py-10 text-center text-slate-500">{isFetchingUserActivity ? "Loading activity..." : "No users match the current filters."}</td></tr>}
+              {!filteredUsers.length && <tr><td colSpan="9" className="py-10 text-center text-slate-500">{isFetchingUserActivity ? "Loading activity..." : "No users match the current filters."}</td></tr>}
             </tbody>
           </table>
         </div>
