@@ -9,6 +9,12 @@ const initialState = {
   isLoading: false,
 };
 
+const isNotificationUnread = (notification) =>
+  notification?.read === false || notification?.read === undefined || notification?.unread === true;
+
+const markRead = (notification) =>
+  notification && typeof notification === "object" ? { ...notification, read: true, unread: false } : notification;
+
 export const createNotification = createAsyncThunk(
   "notification/createNotification",
   async (Notification, { rejectWithValue }) => {
@@ -62,14 +68,42 @@ export const deleteNotification = createAsyncThunk(
   }
 );
 
+export const markNotificationAsRead = createAsyncThunk(
+  "notification/markNotificationAsRead",
+  async (NotificationId, { rejectWithValue }) => {
+    try {
+      const response = await axiosInstance.put(
+        `notification/${NotificationId}/readNotification`,
+        {},
+        { withCredentials: true }
+      );
+      return response.data.notification;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || "Notification update failed"
+      );
+    }
+  }
+);
+
 
 const notificationSlice = createSlice({
   name: "notification",
   initialState: initialState,
   reducers: {
-
-    
-
+    markAllNotificationsRead: (state) => {
+      state.notifications = state.notifications.map(markRead);
+    },
+    clearUnreadNotifications: (state) => {
+      state.notifications = state.notifications.map((notification) =>
+        isNotificationUnread(notification) ? markRead(notification) : notification
+      );
+    },
+    markNotificationReadOptimistic: (state, action) => {
+      state.notifications = state.notifications.map((notification) =>
+        notification?._id === action.payload ? markRead(notification) : notification
+      );
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -106,11 +140,22 @@ const notificationSlice = createSlice({
       })
       .addCase(deleteNotification.rejected, (state, action) => {
         toast.error(action.payload || "Error deleting notification");
+      })
+
+      .addCase(markNotificationAsRead.fulfilled, (state, action) => {
+        const updatedNotification = action.payload;
+        const notificationId = updatedNotification?._id || action.meta.arg;
+        state.notifications = state.notifications.map((notification) =>
+          notification._id === notificationId ? markRead(updatedNotification ? { ...notification, ...updatedNotification } : notification) : notification
+        );
+      })
+      .addCase(markNotificationAsRead.rejected, (state, action) => {
+        toast.error(action.payload || "Error updating notification");
       });
   },
 });
 
 export default notificationSlice.reducer;
-export const { addNotification } = notificationSlice.actions;
+export const { clearUnreadNotifications, markAllNotificationsRead, markNotificationReadOptimistic } = notificationSlice.actions;
 
 
