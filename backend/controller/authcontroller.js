@@ -53,11 +53,15 @@ const sendOtp = async (req, res) => {
 
   try {
     const otp = otpService.generateOTP();
-    await smsService.sendOTP(phone, otp);
+    const smsResult = await smsService.sendOTP(phone, otp);
+    // Demo OTP Mode: OTPs are stored temporarily and verified through the existing flow.
     otpService.saveOTP(phone, otp);
 
-    const response = { success: true, message: "OTP sent successfully." };
-    if (process.env.NODE_ENV !== "production") response.otp = otp;
+    const response = { success: true, message: "OTP generated successfully" };
+    if (smsResult?.demoMode === true) {
+      response.demoMode = true;
+      response.otp = otp;
+    }
     return res.status(200).json(response);
   } catch (error) {
     otpService.invalidateOTP(phone);

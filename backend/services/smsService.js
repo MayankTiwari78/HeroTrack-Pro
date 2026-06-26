@@ -14,12 +14,10 @@ const sendOTP = async (phone, otp) => {
     return smsProvider.sendMessage({ to: phone, message });
   }
 
-  if (process.env.NODE_ENV !== "production") {
-    console.info(`[SMS development] OTP for ${phone}: ${otp}`);
-    return { accepted: true, provider: "development" };
-  }
-
-  throw new Error("SMS provider is not configured.");
+  // Demo OTP Mode: fall back to backend logs when no SMS provider is configured.
+  const mobile = phone;
+  console.log(`Demo OTP for ${mobile}: ${otp}`);
+  return { accepted: true, provider: "demo", demoMode: true };
 };
 
 module.exports = { sendOTP, setSMSProvider };

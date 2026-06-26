@@ -65,6 +65,7 @@ function SignupPage() {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [termsError, setTermsError] = useState("");
   const [otp, setOtp] = useState("");
+  const [demoOtp, setDemoOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [otpVerified, setOtpVerified] = useState(false);
   const [isSendingOtp, setIsSendingOtp] = useState(false);
@@ -85,6 +86,7 @@ function SignupPage() {
 
   const resetOtpVerification = () => {
     setOtp("");
+    setDemoOtp("");
     setOtpSent(false);
     setOtpVerified(false);
   };
@@ -106,15 +108,17 @@ function SignupPage() {
 
     setIsSendingOtp(true);
     setOtp("");
+    setDemoOtp("");
     setOtpSent(false);
     setOtpVerified(false);
 
     try {
       const response = await axiosInstance.post("auth/send-otp", { phone: getValues("phone") });
       setOtpSent(true);
-      toast.success(
-        response.data.otp ? `OTP Sent: ${response.data.otp}` : response.data.message || "OTP sent successfully."
-      );
+      if (response.data.demoMode === true && response.data.otp) {
+        setDemoOtp(response.data.otp);
+      }
+      toast.success(response.data.message || "OTP sent successfully.");
     } catch (error) {
       toast.error(getRequestError(error, "Unable to send OTP."));
     } finally {
@@ -345,6 +349,12 @@ function SignupPage() {
                       {otpVerified ? "Verified" : isVerifyingOtp ? "Verifying..." : "Verify"}
                     </button>
                   </div>
+
+                  {demoOtp && (
+                    <div className="mt-2 rounded-md border border-[#f59e0b]/40 bg-[#fff7ed] px-3 py-2 text-sm font-black text-[#7c2d12]">
+                      Demo OTP: {demoOtp}
+                    </div>
+                  )}
 
                   {otpVerified ? (
                     <p className="mt-2 flex items-center gap-1.5 text-xs font-bold text-green-700" role="status">
